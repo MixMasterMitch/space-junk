@@ -1,0 +1,37 @@
+{
+  "name": "space-junk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "protobuf": "mkdir -p generated; pbjs -t static-module -w commonjs -o generated/protobuf.js protobuf/satellite.proto; pbts -o generated/protobuf.d.ts generated/protobuf.js",
+    "parse-tle": "ts-node -P tsconfig.json --files -r tsconfig-paths/register bin/parse-tle.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MixMasterMitch/space-junk.git"
+  },
+  "author": "Mitchell Loeppky",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MixMasterMitch/space-junk/issues"
+  },
+  "homepage": "https://github.com/MixMasterMitch/space-junk#readme",
+  "devDependencies": {
+    "@tsconfig/recommended": "^1.0.1",
+    "@typescript-eslint/eslint-plugin": "^4.14.1",
+    "@typescript-eslint/parser": "^4.14.1",
+    "csv-parse": "^4.15.0",
+    "eslint": "^7.18.0",
+    "eslint-config-prettier": "^7.2.0",
+    "eslint-plugin-prettier": "^3.3.1",
+    "prettier": "^2.2.1",
+    "protobufjs": "^6.10.2",
+    "ts-node": "^9.1.1",
+    "tsconfig-paths": "^3.9.0",
+    "typescript": "^4.1.3"
+  },
+  "dependencies": {
+    "satellite.js": "^4.1.3"
+  }
+}

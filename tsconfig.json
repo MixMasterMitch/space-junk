@@ -1,0 +1,12 @@
+{
+    "extends": "@tsconfig/recommended/tsconfig.json",
+    "compilerOptions": {
+        "noImplicitAny": true,
+        "baseUrl": ".",
+        "paths": {
+          "*": ["*", "generated/*"]
+        }
+    },
+    "include": ["src/**/*", "bin/**/*", "typings/**/*"],
+    "exclude": ["node_modules"]
+}

@@ -1,0 +1,14 @@
+message Satellite {
+    required string satnum = 1;
+    required uint32 epochyr = 2;
+    required float epochdays = 3;
+    required float ndot = 4;
+    required float nddot = 5;
+    required float bstar = 6;
+    required float inclo = 7;
+    required float nodeo = 8;
+    required float ecco = 9;
+    required float argpo = 10;
+    required float mo = 11;
+    required float no = 12;
+}
