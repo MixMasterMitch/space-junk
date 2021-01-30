@@ -1,0 +1,80 @@
+<html>
+    <head>
+        <style type="text/css">
+            body {
+                padding: 0;
+                margin: 0;
+                background: #0e151e;
+                box-sizing: content-box;
+                color: #9da5bd;
+                font-family: 'Andale Mono', monospace;
+            }
+            @keyframes spinner-inner {
+                0% { transform: rotate(0deg) }
+                50% { transform: rotate(180deg) }
+                100% { transform: rotate(360deg) }
+            }
+            .spinner {
+                position: absolute;
+                left: calc(50% - 100px);
+                top: calc(50% - 100px);
+                width: 200px;
+                height: 200px;
+                display: inline-block;
+                overflow: hidden;
+            }
+            .spinner-inner {
+                width: 100%;
+                height: 100%;
+                position: relative;
+                transform: translateZ(0) scale(1);
+                backface-visibility: hidden;
+                transform-origin: 0 0; /* see note above */
+            }
+            .spinner-inner div {
+                position: absolute;
+                animation: spinner-inner 0.75s linear infinite;
+                width: 160px;
+                height: 160px;
+                top: 20px;
+                left: 20px;
+                border-radius: 50%;
+                box-shadow: 0 4px 0 0 #f0f5f6;
+                transform-origin: 80px 82px;
+            }
+            .loading-text {
+                position: absolute;
+                top: calc(50% + 120px);
+                text-align: center;
+                width: 100%;
+            }
+            @keyframes fade-in {
+                0% { opacity: 0; display: none; }
+                100% { opacity: 1; display: block; }
+            }
+            .fade-in {
+                animation: fade-in 0.75s linear forwards;
+            }
+            @keyframes fade-out {
+                0% { opacity: 1; display: block; }
+                100% { opacity: 0; display: none; }
+            }
+            .fade-out {
+                animation: fade-out 0.75s linear forwards;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="loading-container fade-in">
+            <div class="spinner">
+                <div class="spinner-inner">
+                    <div></div>
+                </div>
+            </div>
+            <div class="loading-text">
+                Loading satellite data...
+            </div>
+        </div>
+        <script src="./bundle.js"></script>
+    </body>
+</html>
