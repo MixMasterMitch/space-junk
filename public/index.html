@@ -53,14 +53,18 @@
                 100% { opacity: 1; display: block; }
             }
             .fade-in {
-                animation: fade-in 0.75s linear forwards;
+                animation: fade-in 1s ease forwards;
             }
             @keyframes fade-out {
                 0% { opacity: 1; display: block; }
                 100% { opacity: 0; display: none; }
             }
             .fade-out {
-                animation: fade-out 0.75s linear forwards;
+                animation: fade-out 1s ease forwards;
+            }
+            .animation-delayed {
+                opacity: 0;
+                animation-delay: 2s;
             }
         </style>
     </head>
