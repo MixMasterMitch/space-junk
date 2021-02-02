@@ -4,6 +4,7 @@
     "description": "",
     "main": "src/index.ts",
     "scripts": {
+        "pull-tles": "ts-node bin/tle-puller.ts",
         "build": "webpack --config webpack.dist.config.js",
         "copy-public-to-dist": "cp -r public dist",
         "develop": "cross-env TS_NODE_PROJECT=\"tsconfig-for-webpack-config.json\" webpack serve --config webpack.dev.config.ts",
@@ -23,6 +24,7 @@
     "devDependencies": {
         "@tsconfig/recommended": "^1.0.1",
         "@types/papaparse": "^5.2.5",
+        "@types/request": "^2.48.5",
         "@types/webpack-dev-server": "^3.11.1",
         "@typescript-eslint/eslint-plugin": "^4.14.1",
         "@typescript-eslint/parser": "^4.14.1",
@@ -45,6 +47,7 @@
         "install": "^0.13.0",
         "npm": "^6.14.11",
         "papaparse": "^5.3.0",
+        "request": "^2.88.2",
         "satellite.js": "^4.1.3"
     }
 }

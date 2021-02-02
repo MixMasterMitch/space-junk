@@ -2,7 +2,8 @@
     "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
         "noImplicitAny": true,
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "resolveJsonModule": true
     },
-    "include": ["src/**/*", "typings/**/*"]
+    "include": ["src/**/*", "typings/**/*", "bin/**/*"]
 }
