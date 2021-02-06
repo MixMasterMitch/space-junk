@@ -1,5 +1,6 @@
 import { Scene, PerspectiveCamera, WebGLRenderer, SphereGeometry, MeshPhongMaterial, Mesh, Color, DirectionalLight } from 'three';
 import Earth from './animation/Earth';
+import {J2000_EPOCH} from "./constants";
 
 const FOV = 70;
 
@@ -32,14 +33,18 @@ export const startAnimation = async (): Promise<void> => {
 
     document.body.appendChild(renderer.domElement);
 
+    let date = J2000_EPOCH;
     const animate = function () {
         requestAnimationFrame(animate);
+
+        date = new Date(date.getTime() + 60 * 1000);
+        console.log(date);
 
         // const t = Date.now() * 0.001;
         // sun.position.x = Math.sin(t);
         // sun.position.y = Math.cos(t);
 
-        earth.render(new Date(), camera);
+        earth.render(date, camera);
 
         renderer.render(scene, camera);
     };
