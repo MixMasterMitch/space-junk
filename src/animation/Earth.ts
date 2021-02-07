@@ -1,14 +1,10 @@
 import * as THREE from 'three';
-import {getJ200DayPercentage, getJ200YearPercentage, percentageToRadians} from '../utils';
-
-abstract class SceneComponent {
-    abstract initialize(scene: THREE.Scene, renderer: THREE.Renderer): Promise<void>;
-
-    abstract render(date: Date, camera: THREE.Camera): void;
-}
+import { getJ200SiderealDayPercentage } from '../utils';
+import SceneComponent from './SceneComponent';
+import Sun from './Sun';
 
 export default class Earth extends SceneComponent {
-    private static RADIUS = 100.0;
+    public static RADIUS = 6371;
     private static ATMOSPHERE = {
         Kr: 0.0015,
         Km: 0.001,
@@ -217,18 +213,6 @@ void main(void)
   vNormal = normal;
 }`;
     private static FRAGMENT_GROUND_SHADER = `
-//
-// Atmospheric scattering fragment shader
-//
-// Author: Sean O'Neil
-//
-// Copyright (c) 2004 Sean O'Neil
-//
-// Ported for use with three.js/WebGL by James Baicoianu
-
-//uniform sampler2D s2Tex1;
-//uniform sampler2D s2Tex2;
-
 uniform float fNightScale;
 uniform vec3 v3LightPosition;
 uniform sampler2D tDiffuse;
@@ -261,8 +245,12 @@ void main (void)
     private ground?: { geometry: THREE.SphereGeometry; material: THREE.ShaderMaterial; mesh: THREE.Mesh };
     private sky?: { geometry: THREE.SphereGeometry; material: THREE.ShaderMaterial; mesh: THREE.Mesh };
 
-    private f = 0;
-    private g = 0;
+    private sun: Sun;
+
+    constructor(sun: Sun) {
+        super();
+        this.sun = sun;
+    }
 
     public async initialize(scene: THREE.Scene, renderer: THREE.WebGLRenderer): Promise<void> {
         const textureLoader = new THREE.TextureLoader();
@@ -430,40 +418,20 @@ void main (void)
             return;
         }
 
-        const rotationPercentage = getJ200DayPercentage(date);
-        console.log(rotationPercentage);
+        const rotationPercentage = getJ200SiderealDayPercentage(date);
+        // console.log(rotationPercentage);
 
-        // Move Earth
-        // this.ground.mesh.setRotationFromEuler(new THREE.Euler(0, percentageToRadians(rotationPercentage), 0));
-        // this.sky.mesh.setRotationFromEuler(new THREE.Euler(0, percentageToRadians(rotationPercentage), 0));
-        // this.ground.mesh.setRotationFromEuler(new THREE.Euler(0, 0, 0));
-        // this.sky.mesh.setRotationFromEuler(new THREE.Euler(0, 0, 0));
-
-        // this.f += 0.0002;
-        // this.g += 0.008;
-
-        // Move camera
-        const eyeVector = new THREE.Vector3(Earth.RADIUS * 1.9, 100, 0);
-        // const eyeEuler = new THREE.Euler(this.g / 60 + 12, -this.f * 10 + 20, 0);
-        // const eyeMatrix = new THREE.Matrix4().makeRotationFromEuler(eyeEuler);
-        // const eye = eyeVector.applyMatrix4(eyeMatrix);
-        camera.position.set(eyeVector.x, eyeVector.y, eyeVector.z);
-        camera.lookAt(new THREE.Vector3(0, 0, 0));
-
-        const lightVector = new THREE.Vector3(1, 0, 0);
-        const lightEuler = new THREE.Euler(0, percentageToRadians(0.25), 0);
-        const lightMatrix = new THREE.Matrix4().makeRotationFromEuler(lightEuler);
-        const light = lightVector.applyMatrix4(lightMatrix);
+        const lightPosition = this.sun.getPosition();
         const cameraHeight = camera.position.length();
 
-        this.sky.material.uniforms.v3LightPosition.value = light;
+        this.sky.material.uniforms.v3LightPosition.value = lightPosition;
         this.sky.material.uniforms.fCameraHeight.value = cameraHeight;
         this.sky.material.uniforms.fCameraHeight2.value = cameraHeight * cameraHeight;
-        this.ground.material.uniforms.v3LightPosition.value = light;
+        this.ground.material.uniforms.v3LightPosition.value = lightPosition;
         this.ground.material.uniforms.fCameraHeight.value = cameraHeight;
         this.ground.material.uniforms.fCameraHeight2.value = cameraHeight * cameraHeight;
-        this.ground.material.uniforms.fGroundRotation.value = percentageToRadians(rotationPercentage);
-        this.ground.material.uniforms.fCloudRotation.value = percentageToRadians(rotationPercentage) * 0.8;
+        this.ground.material.uniforms.fGroundRotation.value = -rotationPercentage;
+        this.ground.material.uniforms.fCloudRotation.value = -rotationPercentage;
     }
 }
 
