@@ -4,7 +4,10 @@ import SceneComponent from './SceneComponent';
 import Sun from './Sun';
 
 export default class Earth extends SceneComponent {
-    public static RADIUS = 6371;
+    public static GEOSTATIONARY_KM = 42_164;
+    public static GEOSTATIONARY = Earth.GEOSTATIONARY_KM / 1000;
+    public static RADIUS_KM = 6_371;
+    public static RADIUS = Earth.RADIUS_KM / 1000;
     private static ATMOSPHERE = {
         Kr: 0.0015,
         Km: 0.001,
@@ -392,6 +395,7 @@ void main (void)
             material: groundMaterial,
             mesh: new THREE.Mesh(groundGeometry, groundMaterial),
         };
+        this.ground.mesh.castShadow = true;
         scene.add(this.ground.mesh);
 
         const skyGeometry = new THREE.SphereGeometry(Earth.ATMOSPHERE.outerRadius, 500, 500);
