@@ -2,3 +2,5 @@ generated/
 node_modules/
 .idea/
 spaceTrackCreds.json
+src/native/pkg
+src/native/target

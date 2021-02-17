@@ -9,6 +9,10 @@ const main = async (): Promise<void> => {
     const loadingContainer = document.getElementsByClassName('loading-container')[0];
     loadingContainer.className = loadingContainer.className.replace('fade-in', 'fade-out');
     await startAnimation();
+
+    const nativeModule = await import('./native/pkg');
+    console.log(nativeModule.main(0));
+    console.log(nativeModule.main(1));
 };
 
 main().then(() => console.log);

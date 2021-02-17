@@ -1,6 +1,7 @@
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
 import path from 'path';
 import webpack from 'webpack';
+import WasmPackPlugin from '@wasm-tool/wasm-pack-plugin';
 
 const config: webpack.Configuration = {
     entry: {
@@ -21,7 +22,15 @@ const config: webpack.Configuration = {
             },
         ],
     },
-    plugins: [new ForkTsCheckerWebpackPlugin()],
+    plugins: [
+        new ForkTsCheckerWebpackPlugin(),
+        new WasmPackPlugin({
+            crateDirectory: path.resolve(__dirname, 'src', 'native'),
+        }) as any,
+    ],
+    experiments: {
+        syncWebAssembly: true,
+    },
 
     // Fail if there are any errors (such as a TypeScript type issue)
     bail: true,
