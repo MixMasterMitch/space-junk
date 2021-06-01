@@ -8,7 +8,7 @@ build = "build.rs"
 
 [lib]
 crate-type = ["cdylib"]
-path = "sgp4.rs"
+path = "src/sgp4.rs"
 
 [dependencies]
 sgp4 = "0.5"
