@@ -4,3 +4,4 @@ node_modules/
 spaceTrackCreds.json
 src/native/pkg
 src/native/target
+.yarn/

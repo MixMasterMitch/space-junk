@@ -4,6 +4,7 @@ import { getJ200SiderealYearPercentage, percentageToRadians } from '../utils';
 import * as THREE from 'three';
 import { AXIAL_TILT_RAD } from '../constants';
 import Earth from './Earth';
+import { GUIData } from './index';
 
 export default class Sun extends SceneComponent {
     private sun?: DirectionalLight;
@@ -29,33 +30,34 @@ export default class Sun extends SceneComponent {
         this.sunSecondary.castShadow = false;
         scene.add(this.sunSecondary);
 
-        this.backgroundLight = new AmbientLight(0xffffff, 0.2);
+        // this.backgroundLight = new AmbientLight(0xffffff, 0.01);
         // scene.add(this.backgroundLight);
 
         // const helper = new THREE.CameraHelper(this.sun.shadow.camera);
         // scene.add(helper);
     }
 
-    public render(date: Date, camera: Camera): void {
+    public render(date: Date, camera: Camera, guiData: GUIData): void {
         if (!this.sun || !this.sunSecondary) {
             return;
         }
 
         const revolutionPercentage = getJ200SiderealYearPercentage(date);
-        console.log(revolutionPercentage);
+        // console.log(revolutionPercentage);
 
-        const sunVector = new THREE.Vector3(1, 0, 0);
+        const sunVector = new THREE.Vector3(Earth.DISTANCE_FROM_SUN, 0, 0);
         const sunEuler = new THREE.Euler(0, percentageToRadians(revolutionPercentage), -AXIAL_TILT_RAD * Math.cos(percentageToRadians(revolutionPercentage)));
         const sunMatrix = new THREE.Matrix4().makeRotationFromEuler(sunEuler);
         const sunPosition = sunVector.applyMatrix4(sunMatrix);
         this.sun.position.set(sunPosition.x, sunPosition.y, sunPosition.z);
-        this.sunSecondary.position.set(sunPosition.x * 5, sunPosition.y * 5, sunPosition.z * 5);
+        this.sunSecondary.position.set(sunPosition.x, sunPosition.y, sunPosition.z);
+        // this.sunSecondary.position.set(sunPosition.x * 5, sunPosition.y * 5, sunPosition.z * 5);
     }
 
     public getPosition(): THREE.Vector3 {
         if (!this.sun) {
-            return (null as unknown) as THREE.Vector3;
+            return null as unknown as THREE.Vector3;
         }
-        return this.sun.position.clone();
+        return this.sun.position.normalize().clone();
     }
 }

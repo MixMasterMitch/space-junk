@@ -24,3 +24,7 @@ export const getDecimalComponent = (n: number): number => {
 export const percentageToRadians = (percentage: number): number => {
     return percentage * 2 * Math.PI;
 };
+
+export const kmToModelUnits = (km: number): number => {
+    return km / 1000;
+};

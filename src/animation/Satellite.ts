@@ -1,6 +1,7 @@
 import SceneComponent from './SceneComponent';
 import { Camera, Mesh, Renderer, Scene, SphereGeometry, MeshPhongMaterial } from 'three';
 import Earth from './Earth';
+import { GUIData } from './index';
 
 export default class Satellite extends SceneComponent {
     private sphere?: Mesh;
@@ -14,7 +15,7 @@ export default class Satellite extends SceneComponent {
         scene.add(this.sphere);
     }
 
-    public render(date: Date, camera: Camera): void {
+    public render(date: Date, camera: Camera, guiData: GUIData): void {
         if (!this.sphere) {
             return;
         }

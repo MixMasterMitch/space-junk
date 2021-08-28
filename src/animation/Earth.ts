@@ -1,13 +1,17 @@
 import * as THREE from 'three';
-import { getJ200SiderealDayPercentage } from '../utils';
+import { getJ200SiderealDayPercentage, kmToModelUnits } from '../utils';
 import SceneComponent from './SceneComponent';
 import Sun from './Sun';
+import { AxesHelper } from 'three';
+import { GUIData } from './index';
 
 export default class Earth extends SceneComponent {
     public static GEOSTATIONARY_KM = 42_164;
-    public static GEOSTATIONARY = Earth.GEOSTATIONARY_KM / 1000;
+    public static GEOSTATIONARY = kmToModelUnits(Earth.GEOSTATIONARY_KM);
     public static RADIUS_KM = 6_371;
-    public static RADIUS = Earth.RADIUS_KM / 1000;
+    public static RADIUS = kmToModelUnits(Earth.RADIUS_KM);
+    public static DISTANCE_FROM_SUN_KM = 149_597_870;
+    public static DISTANCE_FROM_SUN = kmToModelUnits(Earth.DISTANCE_FROM_SUN_KM);
     private static ATMOSPHERE = {
         Kr: 0.0015,
         Km: 0.001,
@@ -247,6 +251,7 @@ void main (void)
 
     private ground?: { geometry: THREE.SphereGeometry; material: THREE.ShaderMaterial; mesh: THREE.Mesh };
     private sky?: { geometry: THREE.SphereGeometry; material: THREE.ShaderMaterial; mesh: THREE.Mesh };
+    private axesHelper?: AxesHelper;
 
     private sun: Sun;
 
@@ -413,14 +418,16 @@ void main (void)
         };
         scene.add(this.sky.mesh);
 
-        const axesHelper = new THREE.AxesHelper(10);
-        scene.add(axesHelper);
+        this.axesHelper = new THREE.AxesHelper(Earth.RADIUS * 1.5);
+        scene.add(this.axesHelper);
     }
 
-    public render(date: Date, camera: THREE.Camera): void {
-        if (!this.sky || !this.ground) {
+    public render(date: Date, camera: THREE.Camera, guiData: GUIData): void {
+        if (!this.sky || !this.ground || !this.axesHelper) {
             return;
         }
+
+        this.axesHelper.visible = guiData.showAxes;
 
         const rotationPercentage = getJ200SiderealDayPercentage(date);
         // console.log(rotationPercentage);

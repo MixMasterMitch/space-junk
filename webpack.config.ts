@@ -1,4 +1,3 @@
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
 import path from 'path';
 import webpack from 'webpack';
 import WasmPackPlugin from '@wasm-tool/wasm-pack-plugin';
@@ -14,16 +13,15 @@ const config: webpack.Configuration = {
         rules: [
             {
                 test: /\.ts$/,
-                loader: 'ts-loader',
+                loader: 'esbuild-loader',
                 options: {
-                    // disable type checker - we will use it in fork plugin
-                    transpileOnly: true,
+                    loader: 'ts',
+                    target: 'es2019',
                 },
             },
         ],
     },
     plugins: [
-        new ForkTsCheckerWebpackPlugin(),
         new WasmPackPlugin({
             crateDirectory: path.resolve(__dirname, 'src', 'native'),
         }) as any,

@@ -11,8 +11,7 @@ module.exports = merge(baseConfig, {
     },
 
     devServer: {
-        contentBase: path.join(__dirname, 'public'),
-        publicPath: '/',
+        static: true,
         port: 3001,
     },
 
