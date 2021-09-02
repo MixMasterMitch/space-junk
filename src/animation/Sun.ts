@@ -1,63 +1,132 @@
 import SceneComponent from './SceneComponent';
-import { AmbientLight, Camera, DirectionalLight, Renderer, Scene } from 'three';
-import { getJ200SiderealYearPercentage, percentageToRadians } from '../utils';
-import * as THREE from 'three';
-import { AXIAL_TILT_RAD } from '../constants';
+import {
+    AmbientLight,
+    Camera,
+    CameraHelper,
+    Color,
+    DirectionalLight,
+    Mesh,
+    MeshPhongMaterial,
+    Renderer,
+    Scene,
+    SphereGeometry,
+    TextureLoader,
+    Vector3,
+} from 'three';
+import { kmToModelUnits, log } from '../utils';
 import Earth from './Earth';
 import { GUIData } from './index';
+import TraceLine from './TraceLine';
+import { sunPosition as getSunPosition } from '../orb';
+import { Lensflare, LensflareElement } from 'three/examples/jsm/objects/Lensflare';
 
 export default class Sun extends SceneComponent {
-    private sun?: DirectionalLight;
-    private sunSecondary?: DirectionalLight;
+    private static RADIUS_KM = 696_340;
+    private static RADIUS = kmToModelUnits(Sun.RADIUS_KM);
+
+    private sphere?: Mesh;
+    private lensflare?: Lensflare;
+    private lensflareElements?: { element: LensflareElement; baseSize: number }[];
+    private primaryDirectionalLight?: DirectionalLight;
+    private secondaryDirectionalLight?: DirectionalLight;
     private backgroundLight?: AmbientLight;
+    private shadowHelper?: CameraHelper;
+    private traceLine?: TraceLine;
 
     public async initialize(scene: Scene, renderer: Renderer): Promise<void> {
-        this.sun = new DirectionalLight(0xffffff, 0.8);
-        this.sun.position.set(0, 0, 0);
-        this.sun.castShadow = true;
-        this.sun.shadow.mapSize.width = 1024;
-        this.sun.shadow.mapSize.height = 1024;
-        this.sun.shadow.camera.top = Earth.RADIUS * 2;
-        this.sun.shadow.camera.bottom = -Earth.RADIUS * 2;
-        this.sun.shadow.camera.left = -Earth.RADIUS * 2;
-        this.sun.shadow.camera.right = Earth.RADIUS * 2;
-        this.sun.shadow.camera.near = -Earth.RADIUS * 2;
-        this.sun.shadow.camera.far = Earth.GEOSTATIONARY * 1.5;
-        scene.add(this.sun);
+        const textureLoader = new TextureLoader();
+        const [lensflareTexture0, lensflareTexture1, lensflareTexture2, lensflareTexture3] = await Promise.all([
+            textureLoader.loadAsync('images/lensflare/lensflare0.png'),
+            textureLoader.loadAsync('images/lensflare/lensflare1.png'),
+            textureLoader.loadAsync('images/lensflare/lensflare2.png'),
+            textureLoader.loadAsync('images/lensflare/lensflare3.png'),
+        ]);
 
-        this.sunSecondary = new DirectionalLight(0xffffff, 0.2);
-        this.sunSecondary.position.set(0, 0, 0);
-        this.sunSecondary.castShadow = false;
-        scene.add(this.sunSecondary);
+        const geometry = new SphereGeometry(Sun.RADIUS, 100, 100);
+        const material = new MeshPhongMaterial({
+            color: 0xffffdd,
+            emissive: 0xffffdd,
+        });
+        this.sphere = new Mesh(geometry, material);
+        this.sphere.receiveShadow = true;
+        scene.add(this.sphere);
 
-        // this.backgroundLight = new AmbientLight(0xffffff, 0.01);
-        // scene.add(this.backgroundLight);
+        const sunColor = new Color(0xffdd88);
+        const lensflare = new Lensflare();
+        this.lensflareElements = [];
+        this.lensflareElements.push({ element: new LensflareElement(lensflareTexture0, 0, 0, sunColor), baseSize: 100 });
+        this.lensflareElements.push({ element: new LensflareElement(lensflareTexture2, 0, 0, sunColor), baseSize: 300 });
+        this.lensflareElements.push({ element: new LensflareElement(lensflareTexture3, 0, 0.03, sunColor), baseSize: 25 });
+        this.lensflareElements.push({ element: new LensflareElement(lensflareTexture3, 0, 0.05, sunColor), baseSize: 40 });
+        this.lensflareElements.push({ element: new LensflareElement(lensflareTexture3, 0, 0.1, sunColor), baseSize: 55 });
+        this.lensflareElements.push({ element: new LensflareElement(lensflareTexture3, 0, 0.13, sunColor), baseSize: 40 });
 
-        // const helper = new THREE.CameraHelper(this.sun.shadow.camera);
-        // scene.add(helper);
+        this.lensflareElements.forEach(({ element }) => {
+            lensflare.addElement(element);
+        });
+        this.lensflare = lensflare;
+        scene.add(this.lensflare);
+
+        this.primaryDirectionalLight = new DirectionalLight(0xffffff, 0.8);
+        this.primaryDirectionalLight.position.set(0, 0, 0);
+        this.primaryDirectionalLight.castShadow = true;
+        this.primaryDirectionalLight.shadow.mapSize.width = 1024;
+        this.primaryDirectionalLight.shadow.mapSize.height = 1024;
+        this.primaryDirectionalLight.shadow.camera.top = Earth.RADIUS * 2;
+        this.primaryDirectionalLight.shadow.camera.bottom = -Earth.RADIUS * 2;
+        this.primaryDirectionalLight.shadow.camera.left = -Earth.RADIUS * 2;
+        this.primaryDirectionalLight.shadow.camera.right = Earth.RADIUS * 2;
+        this.primaryDirectionalLight.shadow.camera.near = -Earth.RADIUS * 2;
+        this.primaryDirectionalLight.shadow.camera.far = Earth.GEOSTATIONARY * 1.5;
+        scene.add(this.primaryDirectionalLight);
+
+        this.secondaryDirectionalLight = new DirectionalLight(0xffffff, 0.2);
+        this.secondaryDirectionalLight.position.set(0, 0, 0);
+        this.secondaryDirectionalLight.castShadow = false;
+        scene.add(this.secondaryDirectionalLight);
+
+        this.backgroundLight = new AmbientLight(0xffffff, 0.2);
+        scene.add(this.backgroundLight);
+
+        this.shadowHelper = new CameraHelper(this.primaryDirectionalLight.shadow.camera);
+        scene.add(this.shadowHelper);
+
+        this.traceLine = new TraceLine(0xffffff);
+        await this.traceLine.initialize(scene, renderer);
     }
 
     public render(date: Date, camera: Camera, guiData: GUIData): void {
-        if (!this.sun || !this.sunSecondary) {
+        if (
+            !this.sphere ||
+            !this.lensflare ||
+            !this.lensflareElements ||
+            !this.primaryDirectionalLight ||
+            !this.secondaryDirectionalLight ||
+            !this.shadowHelper ||
+            !this.traceLine
+        ) {
             return;
         }
 
-        const revolutionPercentage = getJ200SiderealYearPercentage(date);
-        // console.log(revolutionPercentage);
+        const sunPosition = getSunPosition(date);
+        log(sunPosition.length());
+        this.sphere.position.copy(sunPosition);
+        this.lensflare.position.copy(sunPosition).multiplyScalar(0.9); // Make sure the lensflare is not blocked by the sun sphere
+        this.primaryDirectionalLight.position.copy(sunPosition);
+        this.secondaryDirectionalLight.position.copy(sunPosition);
 
-        const sunVector = new THREE.Vector3(Earth.DISTANCE_FROM_SUN, 0, 0);
-        const sunEuler = new THREE.Euler(0, percentageToRadians(revolutionPercentage), -AXIAL_TILT_RAD * Math.cos(percentageToRadians(revolutionPercentage)));
-        const sunMatrix = new THREE.Matrix4().makeRotationFromEuler(sunEuler);
-        const sunPosition = sunVector.applyMatrix4(sunMatrix);
-        this.sun.position.set(sunPosition.x, sunPosition.y, sunPosition.z);
-        this.sunSecondary.position.set(sunPosition.x, sunPosition.y, sunPosition.z);
-        // this.sunSecondary.position.set(sunPosition.x * 5, sunPosition.y * 5, sunPosition.z * 5);
+        this.shadowHelper.visible = guiData.showShadowHelper;
+        this.traceLine.render({ start: new Vector3(0, 0, 0), end: sunPosition }, camera, guiData);
+
+        this.lensflareElements.forEach(({ element, baseSize }) => {
+            element.size = (100 / guiData.fov) * baseSize;
+        });
     }
 
-    public getPosition(): THREE.Vector3 {
-        if (!this.sun) {
-            return null as unknown as THREE.Vector3;
+    public getPosition(): Vector3 {
+        if (!this.primaryDirectionalLight) {
+            return null as unknown as Vector3;
         }
-        return this.sun.position.normalize().clone();
+        return this.primaryDirectionalLight.position.normalize().clone();
     }
 }

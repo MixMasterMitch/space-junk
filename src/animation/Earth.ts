@@ -1,8 +1,20 @@
-import * as THREE from 'three';
-import { getJ200SiderealDayPercentage, kmToModelUnits } from '../utils';
+import { getJ200PeriodPercentage, kmToModelUnits } from '../utils';
 import SceneComponent from './SceneComponent';
 import Sun from './Sun';
-import { AxesHelper } from 'three';
+import {
+    AxesHelper,
+    BackSide,
+    Camera,
+    Mesh,
+    RepeatWrapping,
+    Scene,
+    ShaderMaterial,
+    SphereGeometry,
+    TextureLoader,
+    Vector2,
+    Vector3,
+    WebGLRenderer,
+} from 'three';
 import { GUIData } from './index';
 
 export default class Earth extends SceneComponent {
@@ -12,6 +24,19 @@ export default class Earth extends SceneComponent {
     public static RADIUS = kmToModelUnits(Earth.RADIUS_KM);
     public static DISTANCE_FROM_SUN_KM = 149_597_870;
     public static DISTANCE_FROM_SUN = kmToModelUnits(Earth.DISTANCE_FROM_SUN_KM);
+
+    // Angle between rotational axis and orbital axis.
+    // See: https://en.wikipedia.org/wiki/Axial_tilt
+    public static AXIAL_TILT_RAD = 0.409044;
+
+    // Amount of time for Earth to revolve around its axis
+    // See: https://en.wikipedia.org/wiki/Sidereal_time
+    public static SIDEREAL_DAY_MS = 86_164_091;
+
+    // Amount of time for Earth to revolve around the sun with respect to the stars.
+    // See: https://en.wikipedia.org/wiki/Sidereal_year
+    public static SIDEREAL_YEAR_MS = 31_558_149_764;
+
     private static ATMOSPHERE = {
         Kr: 0.0015,
         Km: 0.001,
@@ -249,8 +274,8 @@ void main (void)
 	gl_FragColor = vec4(c1, 1.0) + vec4(day + night, 1.0);
 }`;
 
-    private ground?: { geometry: THREE.SphereGeometry; material: THREE.ShaderMaterial; mesh: THREE.Mesh };
-    private sky?: { geometry: THREE.SphereGeometry; material: THREE.ShaderMaterial; mesh: THREE.Mesh };
+    private ground?: { geometry: SphereGeometry; material: ShaderMaterial; mesh: Mesh };
+    private sky?: { geometry: SphereGeometry; material: ShaderMaterial; mesh: Mesh };
     private axesHelper?: AxesHelper;
 
     private sun: Sun;
@@ -260,28 +285,30 @@ void main (void)
         this.sun = sun;
     }
 
-    public async initialize(scene: THREE.Scene, renderer: THREE.WebGLRenderer): Promise<void> {
-        const textureLoader = new THREE.TextureLoader();
-        const groundDayTexture = await textureLoader.loadAsync('/images/earthDay.jpg');
-        const groundNightTexture = await textureLoader.loadAsync('/images/earthNight.jpg');
-        const groundCloudsTexture = await textureLoader.loadAsync('/images/earthClouds.jpg');
+    public async initialize(scene: Scene, renderer: WebGLRenderer): Promise<void> {
+        const textureLoader = new TextureLoader();
+        const [groundDayTexture, groundNightTexture, groundCloudsTexture] = await Promise.all([
+            await textureLoader.loadAsync('/images/earthDay.jpg'),
+            await textureLoader.loadAsync('/images/earthNight.jpg'),
+            await textureLoader.loadAsync('/images/earthClouds.jpg'),
+        ]);
 
         const anisotropy = renderer.capabilities.getMaxAnisotropy();
         [groundDayTexture, groundNightTexture, groundCloudsTexture].forEach((t) => {
             t.anisotropy = anisotropy;
-            t.wrapS = THREE.RepeatWrapping;
-            t.wrapT = THREE.RepeatWrapping;
-            t.repeat = new THREE.Vector2(3, 3);
+            t.wrapS = RepeatWrapping;
+            t.wrapT = RepeatWrapping;
+            t.repeat = new Vector2(3, 3);
         });
 
         const uniforms = {
             v3LightPosition: {
                 type: 'v3',
-                value: new THREE.Vector3(1e8, 0, 1e8).normalize(),
+                value: new Vector3(1e8, 0, 1e8).normalize(),
             },
             v3InvWavelength: {
                 type: 'v3',
-                value: new THREE.Vector3(
+                value: new Vector3(
                     1 / Math.pow(Earth.ATMOSPHERE.wavelength[0], 4),
                     1 / Math.pow(Earth.ATMOSPHERE.wavelength[1], 4),
                     1 / Math.pow(Earth.ATMOSPHERE.wavelength[2], 4),
@@ -389,8 +416,8 @@ void main (void)
             },
         };
 
-        const groundGeometry = new THREE.SphereGeometry(Earth.ATMOSPHERE.innerRadius, 100, 100);
-        const groundMaterial = new THREE.ShaderMaterial({
+        const groundGeometry = new SphereGeometry(Earth.ATMOSPHERE.innerRadius, 100, 100);
+        const groundMaterial = new ShaderMaterial({
             uniforms: uniforms,
             vertexShader: Earth.VERTEX_GROUND_SHADER,
             fragmentShader: Earth.FRAGMENT_GROUND_SHADER,
@@ -398,38 +425,38 @@ void main (void)
         this.ground = {
             geometry: groundGeometry,
             material: groundMaterial,
-            mesh: new THREE.Mesh(groundGeometry, groundMaterial),
+            mesh: new Mesh(groundGeometry, groundMaterial),
         };
         this.ground.mesh.castShadow = true;
         scene.add(this.ground.mesh);
 
-        const skyGeometry = new THREE.SphereGeometry(Earth.ATMOSPHERE.outerRadius, 500, 500);
-        const skyMaterial = new THREE.ShaderMaterial({
+        const skyGeometry = new SphereGeometry(Earth.ATMOSPHERE.outerRadius, 500, 500);
+        const skyMaterial = new ShaderMaterial({
             uniforms: uniforms,
             vertexShader: Earth.VERTEX_SKY_SHADER,
             fragmentShader: Earth.FRAGMENT_SKY_SHADER,
-            side: THREE.BackSide,
+            side: BackSide,
             transparent: true,
         });
         this.sky = {
             geometry: skyGeometry,
             material: skyMaterial,
-            mesh: new THREE.Mesh(skyGeometry, skyMaterial),
+            mesh: new Mesh(skyGeometry, skyMaterial),
         };
         scene.add(this.sky.mesh);
 
-        this.axesHelper = new THREE.AxesHelper(Earth.RADIUS * 1.5);
+        this.axesHelper = new AxesHelper(Earth.RADIUS * 1.5);
         scene.add(this.axesHelper);
     }
 
-    public render(date: Date, camera: THREE.Camera, guiData: GUIData): void {
+    public render(date: Date, camera: Camera, guiData: GUIData): void {
         if (!this.sky || !this.ground || !this.axesHelper) {
             return;
         }
 
         this.axesHelper.visible = guiData.showAxes;
 
-        const rotationPercentage = getJ200SiderealDayPercentage(date);
+        const rotationPercentage = this.getJ200SiderealDayPercentage(date);
         // console.log(rotationPercentage);
 
         const lightPosition = this.sun.getPosition();
@@ -444,6 +471,13 @@ void main (void)
         this.ground.material.uniforms.fGroundRotation.value = -rotationPercentage;
         this.ground.material.uniforms.fCloudRotation.value = -rotationPercentage;
     }
+
+    /**
+     * Determines what percentage of a rotation about its axis that Earth has rotated on a given date. Based on the J200 epoch.
+     */
+    private getJ200SiderealDayPercentage = (date: Date): number => {
+        return getJ200PeriodPercentage(date, Earth.SIDEREAL_DAY_MS);
+    };
 }
 
-/* diffuse = THREE.ImageUtils.loadTexture('https://s3-us-west-2.amazonaws.com/s.cdpn.io/141228/earthmap1k.jpg'); */
+/* diffuse = ImageUtils.loadTexture('https://s3-us-west-2.amazonaws.com/s.cdpn.io/141228/earthmap1k.jpg'); */

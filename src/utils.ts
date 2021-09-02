@@ -1,19 +1,10 @@
-import { J2000_EPOCH, SIDEREAL_DAY_MS, SIDEREAL_YEAR_MS } from './constants';
+import { J2000_EPOCH } from './constants';
+import { Vector3 } from 'three';
+import { EciVec3, Kilometer, SatRec, propagate as propagateInKm, KilometerPerSecond } from 'satellite.js';
 
-/**
- * Determines what percentage of the way around the sun that Earth is at a given date. Based on the J200 epoch.
- */
-export const getJ200SiderealYearPercentage = (date: Date): number => {
+export const getJ200PeriodPercentage = (date: Date, periodMs: number): number => {
     const elapsedTime = date.getTime() - J2000_EPOCH.getTime();
-    const elapsedSiderealYears = elapsedTime / SIDEREAL_YEAR_MS;
-    return getDecimalComponent(elapsedSiderealYears);
-};
-/**
- * Determines what percentage of a rotation about its access that Earth has rotated on a given date. Based on the J200 epoch.
- */
-export const getJ200SiderealDayPercentage = (date: Date): number => {
-    const elapsedTime = date.getTime() - J2000_EPOCH.getTime();
-    const elapsedSiderealDays = elapsedTime / SIDEREAL_DAY_MS;
+    const elapsedSiderealDays = elapsedTime / periodMs;
     return getDecimalComponent(elapsedSiderealDays);
 };
 
@@ -27,4 +18,35 @@ export const percentageToRadians = (percentage: number): number => {
 
 export const kmToModelUnits = (km: number): number => {
     return km / 1000;
+};
+
+export const getDayOfYear = (date: Date): number => {
+    const start = new Date(date.getFullYear(), 0, 0);
+    const diff = date.getTime() - start.getTime() + (start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000;
+    const oneDay = 1000 * 60 * 60 * 24;
+    return Math.floor(diff / oneDay);
+};
+
+/**
+ * returns position in model units and velocity in model units per second
+ */
+export const propagate = (satrec: SatRec, date: Date): { position: Vector3; velocity: Vector3 } => {
+    const data = propagateInKm(satrec, date);
+    // TODO: handle false values
+    const positionEci = data.position as EciVec3<Kilometer>;
+    const velocityEci = data.velocity as EciVec3<KilometerPerSecond>;
+    return {
+        // position: new Vector3(kmToModelUnits(positionEci.x), kmToModelUnits(positionEci.y), kmToModelUnits(positionEci.z)),
+        position: new Vector3(kmToModelUnits(positionEci.y), kmToModelUnits(positionEci.z), kmToModelUnits(positionEci.x)),
+        velocity: new Vector3(kmToModelUnits(velocityEci.y), kmToModelUnits(velocityEci.z), kmToModelUnits(velocityEci.x)),
+    };
+};
+
+const _log = console.log;
+console.log = () => {
+    // no op
+};
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+export const log = (message?: any) => {
+    _log(message);
 };

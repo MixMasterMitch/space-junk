@@ -1,20 +1,26 @@
-import { Scene, PerspectiveCamera, WebGLRenderer, PCFSoftShadowMap } from 'three';
+import { Scene, PerspectiveCamera, WebGLRenderer, PCFSoftShadowMap, Vector3 } from 'three';
 import Earth from './Earth';
 import { J2000_EPOCH, SOLAR_SYSTEM_RADIUS } from '../constants';
-import * as THREE from 'three';
 import Sun from './Sun';
 import Satellite from './Satellite';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Stars from './Stars';
 import dat from 'dat.gui';
-
-const FOV = 70;
+import Moon from './Moon';
+import Stats, { Panel } from 'stats.js';
+import { getDayOfYear } from '../utils';
+import SceneComponent from './SceneComponent';
 
 export interface GUIData {
     autoRotate: boolean;
+    showStats: boolean;
     showAxes: boolean;
+    showShadowHelper: boolean;
+    showTraceLines: boolean;
     showStars: boolean;
+    fov: number;
     rotationSpeed: number;
+    extraRotation: number;
 }
 
 export const startAnimation = async (): Promise<void> => {
@@ -23,14 +29,16 @@ export const startAnimation = async (): Promise<void> => {
 
     // Create the scene
     const scene = new Scene();
+    const sceneComponents: SceneComponent[] = [];
 
     // Setup the camera
-    const camera = new PerspectiveCamera(FOV, window.innerWidth / window.innerHeight, 0.1, SOLAR_SYSTEM_RADIUS);
-    // const eyeVector = new THREE.Vector3(Earth.RADIUS * 1.9, Earth.RADIUS, 0);
-    // const eyeVector = new THREE.Vector3(0, 0, Earth.RADIUS * 1.9);
-    const eyeVector = new THREE.Vector3(0, Earth.RADIUS * 2, -Earth.RADIUS * 3);
+    const camera = new PerspectiveCamera(guiData.fov, window.innerWidth / window.innerHeight, 0.1, SOLAR_SYSTEM_RADIUS);
+    // const eyeVector = new Vector3(Earth.RADIUS * 1.9, Earth.RADIUS, 0);
+    // const eyeVector = new Vector3(0, 0, Earth.RADIUS * 1.9);
+    const eyeVector = new Vector3(0, Earth.RADIUS * 2, -Earth.RADIUS * 3);
     camera.position.set(eyeVector.x, eyeVector.y, eyeVector.z);
-    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    camera.lookAt(new Vector3(0, 0, 0));
+    // camera.position.set(0, 0, 0);
 
     // Setup the renderer
     const renderer = new WebGLRenderer({ antialias: true });
@@ -48,21 +56,32 @@ export const startAnimation = async (): Promise<void> => {
 
     // Setup the stars
     const stars = new Stars();
-    await stars.initialize(scene, renderer);
+    sceneComponents.push(stars);
 
     // Setup the sun
     const sun = new Sun();
-    await sun.initialize(scene, renderer);
+    sceneComponents.push(sun);
 
     // Setup the earth
     const earth = new Earth(sun);
-    await earth.initialize(scene, renderer);
+    sceneComponents.push(earth);
+
+    // Setup the moon
+    const moon = new Moon(camera);
+    sceneComponents.push(moon);
 
     // Setup the satellites
     const satellite = new Satellite();
-    await satellite.initialize(scene, renderer);
+    sceneComponents.push(satellite);
 
+    await Promise.all(sceneComponents.map((sc) => sc.initialize(scene, renderer)));
     document.body.appendChild(renderer.domElement);
+
+    // Initialize FPS meter
+    const stats = new Stats();
+    stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+    const panel = stats.addPanel(new Panel('Sats', '#0f0', '#020'));
+    document.body.appendChild(stats.dom);
 
     // Setup the GUI
     const gui = new dat.GUI({ closeOnTop: true });
@@ -70,35 +89,61 @@ export const startAnimation = async (): Promise<void> => {
         localStorage.setItem('gui', JSON.stringify(guiData));
     };
     gui.add(guiData, 'autoRotate').onChange(saveLocalGUIData);
+    gui.add(guiData, 'showStats').onChange(saveLocalGUIData);
     gui.add(guiData, 'showAxes').onChange(saveLocalGUIData);
+    gui.add(guiData, 'showShadowHelper').onChange(saveLocalGUIData);
+    gui.add(guiData, 'showTraceLines').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStars').onChange(saveLocalGUIData);
-    gui.add(guiData, 'rotationSpeed', 1, 24 * 60 * 1000).onChange(saveLocalGUIData);
+    gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
+    gui.add(guiData, 'rotationSpeed', 1, 30 * 24 * 60 * 1000).onChange(saveLocalGUIData);
+    gui.add(guiData, 'extraRotation', 0, Math.PI * 2).onChange(saveLocalGUIData);
 
     let date = J2000_EPOCH;
     const animate = () => {
         requestAnimationFrame(animate);
 
-        controls.autoRotate = guiData.autoRotate;
-        controls.update();
-
         date = new Date(date.getTime() + guiData.rotationSpeed);
         // console.log(date);
+
+        stats.begin();
+        stats.dom.hidden = !guiData.showStats;
+        panel.update(getDayOfYear(date), 366);
+
+        camera.fov = guiData.fov;
+        camera.updateProjectionMatrix();
+        controls.autoRotate = guiData.autoRotate;
+        controls.update();
 
         stars.render(date, camera, guiData);
         sun.render(date, camera, guiData);
         earth.render(date, camera, guiData);
+        moon.render(date, camera, guiData);
         satellite.render(date, camera, guiData);
 
         renderer.render(scene, camera);
+
+        stats.end();
     };
 
     animate();
 };
 
+const DEFAULT_GUI_DATA: GUIData = {
+    autoRotate: true,
+    showStats: true,
+    showAxes: false,
+    showShadowHelper: false,
+    showTraceLines: false,
+    showStars: true,
+    fov: 70,
+    rotationSpeed: 10000,
+    extraRotation: 1,
+};
 const getLocalGUIData = (): GUIData => {
-    const localData = localStorage.getItem('gui');
-    if (localData !== null) {
-        return JSON.parse(localData) as GUIData;
+    const localDataString = localStorage.getItem('gui');
+    let localData: GUIData = {} as GUIData;
+    if (localDataString !== null) {
+        localData = JSON.parse(localDataString) as GUIData;
     }
-    return { autoRotate: true, showAxes: false, showStars: true, rotationSpeed: 10000 };
+    return { ...DEFAULT_GUI_DATA, ...localData };
 };

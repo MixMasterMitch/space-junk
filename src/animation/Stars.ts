@@ -1,6 +1,5 @@
 import SceneComponent from './SceneComponent';
-import { BackSide, Camera, Color, MathUtils, Mesh, Renderer, Scene } from 'three';
-import * as THREE from 'three';
+import { BackSide, BoxGeometry, Camera, Color, MathUtils, Mesh, MeshBasicMaterial, Renderer, Scene, TextureLoader } from 'three';
 import { SOLAR_SYSTEM_RADIUS } from '../constants';
 import { GUIData } from './index';
 
@@ -13,18 +12,27 @@ export default class Stars extends SceneComponent {
     private mesh?: Mesh;
 
     public async initialize(scene: Scene, renderer: Renderer): Promise<void> {
-        const cubeGeometry = new THREE.BoxGeometry(SOLAR_SYSTEM_RADIUS * 0.9, SOLAR_SYSTEM_RADIUS * 0.9, SOLAR_SYSTEM_RADIUS * 0.9);
-        const loader = new THREE.TextureLoader();
-        loader.setPath('images/stars/');
+        const textureLoader = new TextureLoader();
+        textureLoader.setPath('images/starsLowContrast/');
+        const [px, nx, py, ny, pz, nz] = await Promise.all([
+            textureLoader.loadAsync('px.jpg'),
+            textureLoader.loadAsync('nx.jpg'),
+            textureLoader.loadAsync('py.jpg'),
+            textureLoader.loadAsync('ny.jpg'),
+            textureLoader.loadAsync('pz.jpg'),
+            textureLoader.loadAsync('nz.jpg'),
+        ]);
+
+        const cubeGeometry = new BoxGeometry(SOLAR_SYSTEM_RADIUS * 0.9, SOLAR_SYSTEM_RADIUS * 0.9, SOLAR_SYSTEM_RADIUS * 0.9);
         const materialArray = [
-            new THREE.MeshBasicMaterial({ map: loader.load('px.jpg'), side: BackSide }),
-            new THREE.MeshBasicMaterial({ map: loader.load('nx.jpg'), side: BackSide }),
-            new THREE.MeshBasicMaterial({ map: loader.load('py.jpg'), side: BackSide }),
-            new THREE.MeshBasicMaterial({ map: loader.load('ny.jpg'), side: BackSide }),
-            new THREE.MeshBasicMaterial({ map: loader.load('pz.jpg'), side: BackSide }),
-            new THREE.MeshBasicMaterial({ map: loader.load('nz.jpg'), side: BackSide }),
+            new MeshBasicMaterial({ map: px, side: BackSide }),
+            new MeshBasicMaterial({ map: nx, side: BackSide }),
+            new MeshBasicMaterial({ map: py, side: BackSide }),
+            new MeshBasicMaterial({ map: ny, side: BackSide }),
+            new MeshBasicMaterial({ map: pz, side: BackSide }),
+            new MeshBasicMaterial({ map: nz, side: BackSide }),
         ];
-        this.mesh = new THREE.Mesh(cubeGeometry, materialArray);
+        this.mesh = new Mesh(cubeGeometry, materialArray);
         this.mesh.rotation.x = Stars.GALACTIC_CENTER_DEC_RAD;
         // Rotate an extra 180 degrees because the default texture center is positioned looking from the center of
         // the milky way, not towards it.

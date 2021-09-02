@@ -1,9 +1,6 @@
 module.exports = {
     parser: '@typescript-eslint/parser',
-    extends: [
-        'plugin:@typescript-eslint/recommended',
-        'plugin:prettier/recommended',
-    ],
+    extends: ['plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
     parserOptions: {
         ecmaVersion: 2017,
         sourceType: 'module',
@@ -14,7 +11,7 @@ module.exports = {
             rules: {
                 '@typescript-eslint/explicit-function-return-type': 'off',
                 '@typescript-eslint/no-var-requires': 'off',
-            }
-        }
-    ]
+            },
+        },
+    ],
 };

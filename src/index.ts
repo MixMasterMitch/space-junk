@@ -1,18 +1,19 @@
 import { fetchTLEsAndParse } from './io';
 import { startAnimation } from './animation';
+import { log } from './utils';
 
 const main = async (): Promise<void> => {
-    console.log('Fetching and parsing TLEs...');
+    log('Fetching and parsing TLEs...');
     const satRecs = await fetchTLEsAndParse();
-    console.log('Satellite data loaded.');
-    console.log(satRecs);
+    log('Satellite data loaded.');
+    log(satRecs);
+    await startAnimation();
     const loadingContainer = document.getElementsByClassName('loading-container')[0];
     loadingContainer.className = loadingContainer.className.replace('fade-in', 'fade-out');
-    await startAnimation();
 
     const nativeModule = await import('./native/pkg');
-    console.log(nativeModule.main(0));
-    console.log(nativeModule.main(1));
+    log(nativeModule.main(0));
+    log(nativeModule.main(1));
 };
 
-main().then(() => console.log);
+main().then(() => log);

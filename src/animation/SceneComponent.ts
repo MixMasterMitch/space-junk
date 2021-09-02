@@ -1,8 +1,8 @@
-import * as THREE from 'three';
 import { GUIData } from './index';
+import { Camera, Renderer, Scene } from 'three';
 
-export default abstract class SceneComponent {
-    abstract initialize(scene: THREE.Scene, renderer: THREE.Renderer): Promise<void>;
+export default abstract class SceneComponent<T = Date> {
+    abstract initialize(scene: Scene, renderer: Renderer): Promise<void>;
 
-    abstract render(date: Date, camera: THREE.Camera, guiData: GUIData): void;
+    abstract render(data: T, camera: Camera, guiData: GUIData): void;
 }
