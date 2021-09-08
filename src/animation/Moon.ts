@@ -11,7 +11,6 @@ export default class Moon extends SceneComponent {
     private static DISTANCE_FROM_EARTH_KM = 384_400;
     private static DISTANCE_FROM_EARTH = kmToModelUnits(Moon.DISTANCE_FROM_EARTH_KM);
     private static SIDERIAL_PERIOD_MS = 27.322 * 24 * 60 * 60 * 1000;
-    private static J2000_ROTATION_RAD = 2.2; // Derived visually
 
     // Angle between rotational axis and orbital axis.
     // See: https://en.wikipedia.org/wiki/Axial_tilt
@@ -19,6 +18,10 @@ export default class Moon extends SceneComponent {
     // Inclination of the lunar orbital plane
     // See: https://en.wikipedia.org/wiki/Orbit_of_the_Moon
     private static INCLINATION_RAD = -0.089884;
+
+    // The Moon texture needs to be rotated an extra bit to properly align with the J2000 coordinate system.
+    // This value was derived visually.
+    public static TEXTURE_ROTATION_RAD = 2.2;
 
     private sphere?: Mesh;
     private axesHelper?: AxesHelper;
@@ -60,7 +63,7 @@ export default class Moon extends SceneComponent {
         }
         const position = moonPosition(date);
         this.sphere.position.copy(position);
-        const rotation = percentageToRadians(this.getJ200SiderealPeriodPercentage(date)) + Moon.J2000_ROTATION_RAD;
+        const rotation = percentageToRadians(this.getJ200SiderealPeriodPercentage(date)) + Moon.TEXTURE_ROTATION_RAD;
         const rotationQuaternion = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0).normalize(), rotation);
         const axialTiltQuaternion = new Quaternion().setFromAxisAngle(new Vector3(0, 0, -1).normalize(), Moon.AXIAL_TILT_RAD + Moon.INCLINATION_RAD);
         this.sphere.rotation.setFromQuaternion(axialTiltQuaternion.multiply(rotationQuaternion));

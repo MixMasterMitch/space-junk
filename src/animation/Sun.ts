@@ -55,6 +55,7 @@ export default class Sun extends SceneComponent {
         const lensflare = new Lensflare();
         this.lensflareElements = [];
         this.lensflareElements.push({ element: new LensflareElement(lensflareTexture0, 0, 0, sunColor), baseSize: 100 });
+        this.lensflareElements.push({ element: new LensflareElement(lensflareTexture1, 0, 0, sunColor), baseSize: 200 });
         this.lensflareElements.push({ element: new LensflareElement(lensflareTexture2, 0, 0, sunColor), baseSize: 300 });
         this.lensflareElements.push({ element: new LensflareElement(lensflareTexture3, 0, 0.03, sunColor), baseSize: 25 });
         this.lensflareElements.push({ element: new LensflareElement(lensflareTexture3, 0, 0.05, sunColor), baseSize: 40 });
@@ -109,7 +110,6 @@ export default class Sun extends SceneComponent {
         }
 
         const sunPosition = getSunPosition(date);
-        log(sunPosition.length());
         this.sphere.position.copy(sunPosition);
         this.lensflare.position.copy(sunPosition).multiplyScalar(0.9); // Make sure the lensflare is not blocked by the sun sphere
         this.primaryDirectionalLight.position.copy(sunPosition);

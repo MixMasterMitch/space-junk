@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { kmToModelUnits } from './utils';
+import {kmToModelUnits, log} from './utils';
 
 interface Position {
     x: number;
@@ -28,9 +28,32 @@ interface SunConstructor {
     new (): Sun;
 }
 
+interface TLE {
+    name: string;
+    line1: string;
+    line2: string;
+}
+
+interface _TLE {
+    name: string;
+    first_line: string;
+    second_line: string;
+}
+
+declare class Satellite extends Body {
+    constructor(elements: _TLE);
+}
+
+export type SatelliteData = Satellite;
+
+interface SatelliteConstructor {
+    new (elements: _TLE): Satellite;
+}
+
 declare const Orb: {
     Moon: MoonConstructor;
     Sun: SunConstructor;
+    Satellite: SatelliteConstructor;
     EclipticToEquatorial: (params: { date: Date; ecliptic: Position }) => Position;
 };
 
@@ -48,4 +71,16 @@ export function sunPosition(date: Date): Vector3 {
 
 export function moonPosition(date: Date): Vector3 {
     return bodyPosition(moon, date, true);
+}
+
+export function initializeSatellite(tle: TLE): SatelliteData {
+    return new Orb.Satellite({
+        name: tle.name,
+        first_line: tle.line1,
+        second_line: tle.line2,
+    });
+}
+
+export function satellitePosition(date: Date, satellite: SatelliteData): Vector3 {
+    return bodyPosition(satellite, date, false);
 }

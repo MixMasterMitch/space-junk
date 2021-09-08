@@ -1,25 +1,34 @@
-import SceneComponent from './SceneComponent';
-import { Camera, Mesh, Renderer, Scene, SphereGeometry, MeshPhongMaterial } from 'three';
-import Earth from './Earth';
-import { GUIData } from './index';
+import {Renderer, Scene, Vector3,} from 'three';
+import {initializeSatellite, SatelliteData, satellitePosition} from '../orb';
+import {log} from "../utils";
 
-export default class Satellite extends SceneComponent {
-    private sphere?: Mesh;
+export default class Satellite {
+    private readonly timeOffset: number;
+    private satellite?: SatelliteData;
+    private pos?: Vector3;
+    private prevPos?: Vector3;
 
-    public async initialize(scene: Scene, renderer: Renderer): Promise<void> {
-        // const geometry = new BoxGeometry(1, 5 * Earth.RADIUS, 5 * Earth.RADIUS);
-        const geometry = new SphereGeometry(Earth.RADIUS * 0.01);
-        const material = new MeshPhongMaterial({ color: 0xffffff, emissive: 0xffc602, emissiveIntensity: 0.6 });
-        this.sphere = new Mesh(geometry, material);
-        this.sphere.receiveShadow = true;
-        scene.add(this.sphere);
+    public constructor(timeOffset: number) {
+        this.timeOffset = timeOffset;
     }
 
-    public render(date: Date, camera: Camera, guiData: GUIData): void {
-        if (!this.sphere) {
-            return;
-        }
+    public async initialize(scene: Scene, renderer: Renderer): Promise<void> {
+        const tle = {
+            name: 'ISS',
+            line1: `1 25544U 98067A   21245.53748218  .00003969  00000-0  81292-4 0  9995`,
+            line2: `2 25544  51.6442 320.2331 0003041 346.4163 145.5195 15.48587491300581`,
+        };
+        this.satellite = initializeSatellite(tle);
+    }
 
-        this.sphere.position.set(-Earth.RADIUS * 2, 0, 0);
+    public getPosition(rawDate: Date): { prev: Vector3; cur: Vector3 } {
+        if (!this.satellite) {
+            return undefined as unknown as { prev: Vector3; cur: Vector3 };
+        }
+        const date = new Date(rawDate.getTime() + this.timeOffset);
+
+        this.prevPos = this.pos;
+        this.pos = satellitePosition(date, this.satellite);
+        return { prev: this.prevPos || new Vector3(0, 0, 0), cur: this.pos };
     }
 }

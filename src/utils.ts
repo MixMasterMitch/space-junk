@@ -37,16 +37,15 @@ export const propagate = (satrec: SatRec, date: Date): { position: Vector3; velo
     const velocityEci = data.velocity as EciVec3<KilometerPerSecond>;
     return {
         // position: new Vector3(kmToModelUnits(positionEci.x), kmToModelUnits(positionEci.y), kmToModelUnits(positionEci.z)),
-        position: new Vector3(kmToModelUnits(positionEci.y), kmToModelUnits(positionEci.z), kmToModelUnits(positionEci.x)),
-        velocity: new Vector3(kmToModelUnits(velocityEci.y), kmToModelUnits(velocityEci.z), kmToModelUnits(velocityEci.x)),
+        position: new Vector3(-kmToModelUnits(positionEci.y), kmToModelUnits(positionEci.z), -kmToModelUnits(positionEci.x)),
+        velocity: new Vector3(-kmToModelUnits(velocityEci.y), kmToModelUnits(velocityEci.z), -kmToModelUnits(velocityEci.x)),
     };
 };
 
-const _log = console.log;
+// See https://gist.github.com/bgrins/5108712
+export const log = (function () {
+    return Function.prototype.bind.call(console.log, console);
+})();
 console.log = () => {
     // no op
-};
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
-export const log = (message?: any) => {
-    _log(message);
 };

@@ -37,6 +37,10 @@ export default class Earth extends SceneComponent {
     // See: https://en.wikipedia.org/wiki/Sidereal_year
     public static SIDEREAL_YEAR_MS = 31_558_149_764;
 
+    // The Earth texture needs to be rotated an extra bit to properly align with the J2000 coordinate system.
+    // This value was derived visually.
+    public static TEXTURE_ROTATION_PERCENTAGE = 2.8 / 100;
+
     private static ATMOSPHERE = {
         Kr: 0.0015,
         Km: 0.001,
@@ -456,7 +460,7 @@ void main (void)
 
         this.axesHelper.visible = guiData.showAxes;
 
-        const rotationPercentage = this.getJ200SiderealDayPercentage(date);
+        const rotationPercentage = this.getJ200SiderealDayPercentage(date) + Earth.TEXTURE_ROTATION_PERCENTAGE;
         // console.log(rotationPercentage);
 
         const lightPosition = this.sun.getPosition();

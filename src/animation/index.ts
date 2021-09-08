@@ -10,6 +10,7 @@ import Moon from './Moon';
 import Stats, { Panel } from 'stats.js';
 import { getDayOfYear } from '../utils';
 import SceneComponent from './SceneComponent';
+import Satellites from "./Satellites";
 
 export interface GUIData {
     autoRotate: boolean;
@@ -71,8 +72,8 @@ export const startAnimation = async (): Promise<void> => {
     sceneComponents.push(moon);
 
     // Setup the satellites
-    const satellite = new Satellite();
-    sceneComponents.push(satellite);
+    const satellites = new Satellites();
+    sceneComponents.push(satellites);
 
     await Promise.all(sceneComponents.map((sc) => sc.initialize(scene, renderer)));
     document.body.appendChild(renderer.domElement);
@@ -95,10 +96,15 @@ export const startAnimation = async (): Promise<void> => {
     gui.add(guiData, 'showTraceLines').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStars').onChange(saveLocalGUIData);
     gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
-    gui.add(guiData, 'rotationSpeed', 1, 30 * 24 * 60 * 1000).onChange(saveLocalGUIData);
+    gui.add(guiData, 'rotationSpeed', 1, 24 * 60 * 1000).onChange(saveLocalGUIData);
     gui.add(guiData, 'extraRotation', 0, Math.PI * 2).onChange(saveLocalGUIData);
 
-    let date = J2000_EPOCH;
+    // let date = J2000_EPOCH;
+    // let date = new Date('2021-09-02T19:46-07:00');
+    // let date = new Date('2021-09-22T17:21-00:00');
+    // let date = new Date('2021-03-20T09:36-00:00');
+    // let date = new Date('1970-09-22T17:20-00:00');
+    let date = new Date();
     const animate = () => {
         requestAnimationFrame(animate);
 
@@ -118,7 +124,7 @@ export const startAnimation = async (): Promise<void> => {
         sun.render(date, camera, guiData);
         earth.render(date, camera, guiData);
         moon.render(date, camera, guiData);
-        satellite.render(date, camera, guiData);
+        satellites.render(date, camera, guiData);
 
         renderer.render(scene, camera);
 
