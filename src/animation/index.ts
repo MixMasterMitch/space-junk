@@ -2,15 +2,14 @@ import { Scene, PerspectiveCamera, WebGLRenderer, PCFSoftShadowMap, Vector3 } fr
 import Earth from './Earth';
 import { J2000_EPOCH, SOLAR_SYSTEM_RADIUS } from '../constants';
 import Sun from './Sun';
-import Satellite from './Satellite';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Stars from './Stars';
 import dat from 'dat.gui';
 import Moon from './Moon';
 import Stats, { Panel } from 'stats.js';
-import { getDayOfYear } from '../utils';
 import SceneComponent from './SceneComponent';
-import Satellites from "./Satellites";
+import Satellites from './Satellites';
+import {getDayOfYear} from "../utils";
 
 export interface GUIData {
     autoRotate: boolean;
@@ -96,15 +95,15 @@ export const startAnimation = async (): Promise<void> => {
     gui.add(guiData, 'showTraceLines').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStars').onChange(saveLocalGUIData);
     gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
-    gui.add(guiData, 'rotationSpeed', 1, 24 * 60 * 1000).onChange(saveLocalGUIData);
+    gui.add(guiData, 'rotationSpeed', 1, 60 * 1000).onChange(saveLocalGUIData);
     gui.add(guiData, 'extraRotation', 0, Math.PI * 2).onChange(saveLocalGUIData);
 
     // let date = J2000_EPOCH;
-    // let date = new Date('2021-09-02T19:46-07:00');
+    let date = new Date('2021-09-02T19:46-07:00');
     // let date = new Date('2021-09-22T17:21-00:00');
     // let date = new Date('2021-03-20T09:36-00:00');
     // let date = new Date('1970-09-22T17:20-00:00');
-    let date = new Date();
+    // let date = new Date();
     const animate = () => {
         requestAnimationFrame(animate);
 

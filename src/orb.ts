@@ -60,17 +60,24 @@ declare const Orb: {
 const sun = new Orb.Sun();
 const moon = new Orb.Moon();
 
-function bodyPosition(body: Body, date: Date, eclipticToEquatorial: boolean): Vector3 {
+/**
+ * @param body Which body (sun, moon, satellite, etc.) to get a position of.
+ * @param date The point in time to get the body's position at.
+ * @param eclipticToEquatorial Some bodies return their position in ecliptic coordinates. Setting this flag will flip back to equatorial coordinates.
+ * @param output Optional vector to put the output position into. Using this saves an object creation.
+ */
+function bodyPosition(body: Body, date: Date, eclipticToEquatorial: boolean, output = new Vector3()): Vector3 {
     const xyz = eclipticToEquatorial ? Orb.EclipticToEquatorial({ date: date, ecliptic: body.xyz(date) }) : body.xyz(date);
-    return new Vector3(kmToModelUnits(-xyz.y), kmToModelUnits(xyz.z), kmToModelUnits(-xyz.x));
+    // Orb library returns a position in km and uses a different coordinate orientation.
+    return output.set(kmToModelUnits(-xyz.y), kmToModelUnits(xyz.z), kmToModelUnits(-xyz.x));
 }
 
-export function sunPosition(date: Date): Vector3 {
-    return bodyPosition(sun, date, false);
+export function sunPosition(date: Date, output?: Vector3): Vector3 {
+    return bodyPosition(sun, date, false, output);
 }
 
-export function moonPosition(date: Date): Vector3 {
-    return bodyPosition(moon, date, true);
+export function moonPosition(date: Date, output?: Vector3): Vector3 {
+    return bodyPosition(moon, date, true, output);
 }
 
 export function initializeSatellite(tle: TLE): SatelliteData {
@@ -81,6 +88,6 @@ export function initializeSatellite(tle: TLE): SatelliteData {
     });
 }
 
-export function satellitePosition(date: Date, satellite: SatelliteData): Vector3 {
-    return bodyPosition(satellite, date, false);
+export function satellitePosition(date: Date, satellite: SatelliteData, output?: Vector3): Vector3 {
+    return bodyPosition(satellite, date, false, output);
 }
