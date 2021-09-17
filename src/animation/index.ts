@@ -9,7 +9,7 @@ import Moon from './Moon';
 import Stats, { Panel } from 'stats.js';
 import SceneComponent from './SceneComponent';
 import Satellites from './Satellites';
-import {getDayOfYear} from "../utils";
+import { getDayOfYear } from '../utils';
 
 export interface GUIData {
     autoRotate: boolean;
@@ -43,6 +43,7 @@ export const startAnimation = async (): Promise<void> => {
     // Setup the renderer
     const renderer = new WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio / 4);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = PCFSoftShadowMap;
     renderer.domElement.className = 'fade-in animation-delayed';
@@ -95,8 +96,22 @@ export const startAnimation = async (): Promise<void> => {
     gui.add(guiData, 'showTraceLines').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStars').onChange(saveLocalGUIData);
     gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
-    gui.add(guiData, 'rotationSpeed', 1, 60 * 1000).onChange(saveLocalGUIData);
+    gui.add(guiData, 'rotationSpeed', 1, 10000).onChange(saveLocalGUIData);
     gui.add(guiData, 'extraRotation', 0, Math.PI * 2).onChange(saveLocalGUIData);
+
+    // Setup resize handler
+
+    window.addEventListener(
+        'resize',
+        () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+        },
+        false,
+    );
 
     // let date = J2000_EPOCH;
     let date = new Date('2021-09-02T19:46-07:00');
@@ -104,10 +119,14 @@ export const startAnimation = async (): Promise<void> => {
     // let date = new Date('2021-03-20T09:36-00:00');
     // let date = new Date('1970-09-22T17:20-00:00');
     // let date = new Date();
+    let lastFrameTime = Date.now();
     const animate = () => {
         requestAnimationFrame(animate);
 
-        date = new Date(date.getTime() + guiData.rotationSpeed);
+        const now = Date.now();
+        const frameTimeDiff = now - lastFrameTime;
+        lastFrameTime = now;
+        date = new Date(date.getTime() + frameTimeDiff * guiData.rotationSpeed);
         // console.log(date);
 
         stats.begin();
@@ -144,6 +163,7 @@ const DEFAULT_GUI_DATA: GUIData = {
     rotationSpeed: 10000,
     extraRotation: 1,
 };
+
 const getLocalGUIData = (): GUIData => {
     const localDataString = localStorage.getItem('gui');
     let localData: GUIData = {} as GUIData;

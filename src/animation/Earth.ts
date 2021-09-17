@@ -182,10 +182,8 @@ uniform float fScale;			// 1 / (fOuterRadius - fInnerRadius)
 uniform float fScaleDepth;		// The scale depth (i.e. the altitude at which the atmosphere's average density is found)
 uniform float fScaleOverScaleDepth;	// fScale / fScaleDepth
 
-varying vec3 v3Direction;
 varying vec3 c0;
 varying vec3 c1;
-varying vec3 vNormal;
 varying vec2 vUv;
 
 const int nSamples = 3;
@@ -246,7 +244,6 @@ void main(void)
 
   gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
   vUv = uv;
-  vNormal = normal;
 }`;
     private static FRAGMENT_GROUND_SHADER = `
 uniform float fNightScale;
@@ -259,7 +256,6 @@ uniform float fCloudRotation;
 
 varying vec3 c0;
 varying vec3 c1;
-varying vec3 vNormal;
 varying vec2 vUv;
 
 void main (void)

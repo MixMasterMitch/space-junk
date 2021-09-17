@@ -20,6 +20,10 @@ export const kmToModelUnits = (km: number): number => {
     return km / 1000;
 };
 
+export const kmPerSecondToModelUnits = (kmPerSecond: number): number => {
+    return kmPerSecond / 1000 / 1000;
+};
+
 export const getDayOfYear = (date: Date): number => {
     const start = new Date(date.getFullYear(), 0, 0);
     const diff = date.getTime() - start.getTime() + (start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000;

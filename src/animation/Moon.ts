@@ -61,15 +61,14 @@ export default class Moon extends SceneComponent {
         if (!this.sphere || !this.axesHelper || !this.traceLine) {
             return;
         }
-        const position = moonPosition(date);
-        this.sphere.position.copy(position);
+        moonPosition(date, this.sphere.position);
         const rotation = percentageToRadians(this.getJ200SiderealPeriodPercentage(date)) + Moon.TEXTURE_ROTATION_RAD;
         const rotationQuaternion = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0).normalize(), rotation);
         const axialTiltQuaternion = new Quaternion().setFromAxisAngle(new Vector3(0, 0, -1).normalize(), Moon.AXIAL_TILT_RAD + Moon.INCLINATION_RAD);
         this.sphere.rotation.setFromQuaternion(axialTiltQuaternion.multiply(rotationQuaternion));
 
         this.axesHelper.visible = guiData.showAxes;
-        this.traceLine.render({ start: new Vector3(0, 0, 0), end: position }, camera, guiData);
+        this.traceLine.render({ start: new Vector3(0, 0, 0), end: this.sphere.position }, camera, guiData);
     }
 
     /**

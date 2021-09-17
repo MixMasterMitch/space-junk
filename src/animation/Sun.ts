@@ -109,14 +109,14 @@ export default class Sun extends SceneComponent {
             return;
         }
 
-        const sunPosition = getSunPosition(date);
-        this.sphere.position.copy(sunPosition);
-        this.lensflare.position.copy(sunPosition).multiplyScalar(0.9); // Make sure the lensflare is not blocked by the sun sphere
-        this.primaryDirectionalLight.position.copy(sunPosition);
-        this.secondaryDirectionalLight.position.copy(sunPosition);
+        getSunPosition(date, this.sphere.position);
+        this.sphere.position.copy(this.sphere.position);
+        this.lensflare.position.copy(this.sphere.position).multiplyScalar(0.9); // Make sure the lensflare is not blocked by the sun sphere
+        this.primaryDirectionalLight.position.copy(this.sphere.position);
+        this.secondaryDirectionalLight.position.copy(this.sphere.position);
 
         this.shadowHelper.visible = guiData.showShadowHelper;
-        this.traceLine.render({ start: new Vector3(0, 0, 0), end: sunPosition }, camera, guiData);
+        this.traceLine.render({ start: new Vector3(0, 0, 0), end: this.sphere.position }, camera, guiData);
 
         this.lensflareElements.forEach(({ element, baseSize }) => {
             element.size = (100 / guiData.fov) * baseSize;
