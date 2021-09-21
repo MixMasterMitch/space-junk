@@ -9,27 +9,33 @@ import {
     InstancedBufferAttribute,
     BufferAttribute,
     Vector2,
-    BufferGeometry, Vector3
+    BufferGeometry,
 } from 'three';
 import Earth from './Earth';
 import { GUIData } from './index';
 import Satellite from './Satellite';
 import { SatelliteTrailMaterial } from './SatelliteTrailMaterial';
-import { MeshLine } from './meshline';
 import { SatelliteSphereMaterial } from './SatelliteSphereMaterial';
-import {isEqual, memcpy} from "./utils";
-import {log} from "../utils";
+import { memcpy } from './utils';
+import { log } from '../utils';
+import Sun from './Sun';
+import SceneComponent from './SceneComponent';
 
-export default class Satellites {
+export default class Satellites extends SceneComponent {
+    private static NUM_SATELLITES = 25000;
+    private static NUM_TAIL_VERTICES = 20;
+
     private satelliteData?: Satellite[];
     private spheres?: Mesh;
     private trails?: Mesh;
-    private trail?: Mesh;
-    private trail2?: Mesh;
-    private curTrailIndex = 0;
+    private trailTimestamps: number[] = [];
 
-    private static NUM_SATELLITES = 3;
-    private static NUM_TAIL_VERTICES = 10;
+    private sun: Sun;
+
+    constructor(sun: Sun) {
+        super();
+        this.sun = sun;
+    }
 
     public async initialize(scene: Scene, renderer: Renderer): Promise<void> {
         // Initialize all of the satellite data
@@ -58,18 +64,10 @@ export default class Satellites {
 
         const trailGeometry = new BufferGeometry();
         // trailGeometry.instanceCount = Satellites.NUM_SATELLITES;
-        trailGeometry.setAttribute(
-            'position',
-            new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3),
-        );
-        trailGeometry.setAttribute(
-            'previous',
-            new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3),
-        );
-        trailGeometry.setAttribute(
-            'next',
-            new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3),
-        );
+        trailGeometry.setAttribute('position', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3));
+        trailGeometry.setAttribute('previous', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3));
+        trailGeometry.setAttribute('next', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3));
+        trailGeometry.setAttribute('sunPosition', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3));
         const sideArray = new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2);
         trailGeometry.setAttribute('side', new BufferAttribute(sideArray, 1));
         for (let i = 0; i < Satellites.NUM_SATELLITES; i++) {
@@ -107,143 +105,80 @@ export default class Satellites {
         const trailMaterial = new SatelliteTrailMaterial({
             color: new Color(0xffffff),
             sizeAttenuation: 1,
-            lineWidth: 0.05,
+            lineWidth: 0.02,
             resolution: new Vector2(window.innerWidth, window.innerHeight),
-            opacity: 0.5,
+            opacity: 0.25,
+            earthRadius: Earth.RADIUS,
         });
         this.trails = new Mesh(trailGeometry, trailMaterial);
         // this.trails.receiveShadow = true;
         this.trails.frustumCulled = false;
         scene.add(this.trails);
-
-        const geometry = new MeshLine();
-        const points = [];
-        for (let i = 0; i < Satellites.NUM_TAIL_VERTICES * 3; i++) {
-            points[i] = 0;
-        }
-        geometry.setPoints(points, (i) => {
-            return i;
-        });
-        this.trail = new Mesh(geometry, trailMaterial);
-        this.trail.frustumCulled = false;
-        // scene.add(this.trail);
-
-        const geometry2 = new MeshLine();
-        const points2 = [];
-        for (let i = 0; i < Satellites.NUM_TAIL_VERTICES * 3; i++) {
-            points2[i] = 0;
-        }
-        geometry2.setPoints(points2, (i) => {
-            return i;
-        });
-        this.trail2 = new Mesh(geometry2, trailMaterial);
-        this.trail2.frustumCulled = false;
-        // scene.add(this.trail2);
     }
 
     public render(date: Date, camera: Camera, guiData: GUIData): void {
-        if (!this.satelliteData || !this.spheres || !this.trails || !this.trail || !this.trail2) {
+        if (!this.satelliteData || !this.spheres || !this.trails) {
             return;
         }
-        // const prevTrailIndex = (this.curTrailIndex - 1 + Satellites.NUM_TAIL_VERTICES) % Satellites.NUM_TAIL_VERTICES;
-        // const nextTrailIndex = (this.curTrailIndex + 1) % Satellites.NUM_TAIL_VERTICES;
-        // For each satellite, get an updated position and save it to the translation array
+
+        const translationArray = this.spheres.geometry.attributes.translation.array as Float32Array;
+        const positionArray = this.trails.geometry.attributes.position.array as Float32Array;
+        const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
+        const nextArray = this.trails.geometry.attributes.next.array as Float32Array;
+        const sunPositionArray = this.trails.geometry.attributes.sunPosition.array as Float32Array;
+
+        const advanceTrail =
+            this.trailTimestamps.length < Satellites.NUM_TAIL_VERTICES ||
+            date.getTime() - this.trailTimestamps[this.trailTimestamps.length - 1] >= (guiData.tailLength * 60 * 1000) / (Satellites.NUM_TAIL_VERTICES - 1);
+        if (advanceTrail) {
+            this.trailTimestamps.push(date.getTime());
+            if (this.trailTimestamps.length > Satellites.NUM_TAIL_VERTICES) {
+                this.trailTimestamps.shift();
+            }
+
+            // PREVIOUS
+            memcpy(positionArray, 0, previousArray, 0, positionArray.length);
+
+            // POSITIONS
+            memcpy(positionArray, 6, positionArray, 0, positionArray.length - 6);
+
+            // NEXT
+            memcpy(positionArray, 6, nextArray, 0, positionArray.length - 6);
+
+            // SUN POSITION
+            memcpy(sunPositionArray, 6, sunPositionArray, 0, sunPositionArray.length - 6);
+        }
+
+        const sunPosition = this.sun.getPosition();
+        const sunPositionVectorArray = new Float32Array([sunPosition.x, sunPosition.y, sunPosition.z]);
+
+        // For each satellite, get an updated position and save it to the translation array and update the trail
         for (let i = 0; i < Satellites.NUM_SATELLITES; i++) {
             const satelliteData = this.satelliteData[i];
             const position = satelliteData.getPosition(date);
 
-            if (i === 0) {
-                (this.trail.geometry as MeshLine).advance(position);
-            } else {
-                (this.trail2.geometry as MeshLine).advance(position);
-            }
-
-            const translationArray = this.spheres.geometry.attributes.translation.array as Float32Array;
             translationArray[i * 3] = position.x;
             translationArray[i * 3 + 1] = position.y;
             translationArray[i * 3 + 2] = position.z;
 
-            const positionArray = this.trails.geometry.attributes.position.array as Float32Array;
-            const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
-            const nextArray = this.trails.geometry.attributes.next.array as Float32Array;
-            const { x, y, z } = position;
             const l = positionArray.length / Satellites.NUM_SATELLITES;
-            // const indexl = (this.trails.geometry.getIndex()?.array.length || 0) / Satellites.NUM_SATELLITES;
-            // const prevPosition = new Vector3(positionArray[l - 6], positionArray[l - 5], positionArray[l - 4]);
-            // log(prevPosition.sub(position).length());
             const offset = i * Satellites.NUM_TAIL_VERTICES * 2 * 3;
-            // const indexOffset = i * (Satellites.NUM_TAIL_VERTICES - 1) * 2 * 3;
 
-            // PREVIOUS
-            memcpy(positionArray, offset, previousArray, offset, l);
-
-            // POSITIONS
-            memcpy(positionArray, offset + 6, positionArray, offset, l - 6);
-
-            positionArray[offset + l - 6] = x;
-            positionArray[offset + l - 5] = y;
-            positionArray[offset + l - 4] = z;
-            positionArray[offset + l - 3] = x;
-            positionArray[offset + l - 2] = y;
-            positionArray[offset + l - 1] = z;
-
-            // NEXT
-            memcpy(positionArray, offset + 6, nextArray, offset, l - 6);
-
-            nextArray[offset + l - 6] = x;
-            nextArray[offset + l - 5] = y;
-            nextArray[offset + l - 4] = z;
-            nextArray[offset + l - 3] = x;
-            nextArray[offset + l - 2] = y;
-            nextArray[offset + l - 1] = z;
-
-
-            // positionArray[(i + this.curTrailIndex) * 3] = position.x;
-            // positionArray[(i + this.curTrailIndex) * 3 + 1] = position.y;
-            // positionArray[(i + this.curTrailIndex) * 3 + 2] = position.z;
-            // previousArray[(i + this.curTrailIndex) * 3] = positionArray[(i + prevTrailIndex) * 3];
-            // previousArray[(i + this.curTrailIndex) * 3 + 1] = positionArray[(i + prevTrailIndex) * 3 + 1];
-            // previousArray[(i + this.curTrailIndex) * 3 + 2] = positionArray[(i + prevTrailIndex) * 3 + 2];
-            // previousArray[(i + nextTrailIndex) * 3] = positionArray[(i + nextTrailIndex) * 3];
-            // previousArray[(i + nextTrailIndex) * 3 + 1] = positionArray[(i + nextTrailIndex) * 3 + 1];
-            // previousArray[(i + nextTrailIndex) * 3 + 2] = positionArray[(i + nextTrailIndex) * 3 + 2];
-            // nextArray[(i + prevTrailIndex) * 3] = position.x;
-            // nextArray[(i + prevTrailIndex) * 3 + 1] = position.y;
-            // nextArray[(i + prevTrailIndex) * 3 + 2] = position.z;
-            // nextArray[(i + this.curTrailIndex) * 3] = position.x;
-            // nextArray[(i + this.curTrailIndex) * 3 + 1] = position.y;
-            // nextArray[(i + this.curTrailIndex) * 3 + 2] = position.z;
-
-            // if (i === 0) {
-            //     log(isEqual(positionArray.subarray(offset, offset + l), this.trail.geometry.attributes.position.array));
-            //     log(isEqual(previousArray.subarray(offset, offset + l), this.trail.geometry.attributes.previous.array));
-            //     log(isEqual(nextArray.subarray(offset, offset + l), this.trail.geometry.attributes.next.array));
-            //     log(isEqual(this.trails.geometry.attributes.width.array.subarray(offset / 3, (offset + l) / 3), this.trail.geometry.attributes.width.array));
-            //     log(isEqual(this.trails.geometry.attributes.side.array.subarray(offset / 3, (offset + l) / 3), this.trail.geometry.attributes.side.array));
-            //     log(isEqual(this.trails.geometry.getIndex()?.array.subarray(indexOffset, indexOffset + indexl) as Uint32Array, this.trail.geometry.getIndex()?.array as Uint32Array));
-            // } else {
-            //     log(isEqual(positionArray.subarray(offset, offset + l), this.trail2.geometry.attributes.position.array));
-            //     log(isEqual(previousArray.subarray(offset, offset + l), this.trail2.geometry.attributes.previous.array));
-            //     log(isEqual(nextArray.subarray(offset, offset + l), this.trail2.geometry.attributes.next.array));
-            //     log(isEqual(this.trails.geometry.attributes.width.array.subarray(offset / 3, (offset + l) / 3), this.trail2.geometry.attributes.width.array));
-            //     log(isEqual(this.trails.geometry.attributes.side.array.subarray(offset / 3, (offset + l) / 3), this.trail2.geometry.attributes.side.array));
-            //     log(isEqual(this.trails.geometry.getIndex()?.array.subarray(indexOffset, indexOffset + indexl) as Uint32Array, this.trail2.geometry.getIndex()?.array as Uint32Array));
-            // }
+            const positionVectorArray = new Float32Array([position.x, position.y, position.z]);
+            positionArray.set(positionVectorArray, offset + l - 6);
+            positionArray.set(positionVectorArray, offset + l - 3);
+            nextArray.set(positionVectorArray, offset + l - 12);
+            nextArray.set(positionVectorArray, offset + l - 9);
+            nextArray.set(positionVectorArray, offset + l - 6);
+            nextArray.set(positionVectorArray, offset + l - 3);
+            sunPositionArray.set(sunPositionVectorArray, offset + l - 6);
+            sunPositionArray.set(sunPositionVectorArray, offset + l - 3);
         }
         this.spheres.geometry.attributes.translation.needsUpdate = true;
 
         this.trails.geometry.attributes.position.needsUpdate = true;
         this.trails.geometry.attributes.previous.needsUpdate = true;
         this.trails.geometry.attributes.next.needsUpdate = true;
-        // log('test');
-        // log(isEqual(this.trails.geometry.attributes.position.array, this.trail.geometry.attributes.position.array));
-        // log(isEqual(this.trails.geometry.attributes.previous.array, this.trail.geometry.attributes.previous.array));
-        // log(isEqual(this.trails.geometry.attributes.next.array, this.trail.geometry.attributes.next.array));
-        // log(isEqual(this.trails.geometry.attributes.width.array, this.trail.geometry.attributes.width.array));
-        // log(isEqual(this.trails.geometry.attributes.side.array, this.trail.geometry.attributes.side.array));
-        // log(isEqual(this.trails.geometry.getIndex()?.array as Uint32Array, this.trail.geometry.getIndex()?.array as Uint32Array));
-        // const trailIndex = this.trails.geometry.getIndex()?.array as Uint32Array;
-
-        // this.curTrailIndex = (this.curTrailIndex + 1) % Satellites.NUM_TAIL_VERTICES;
+        this.trails.geometry.attributes.sunPosition.needsUpdate = true;
     }
 }

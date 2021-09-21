@@ -1,6 +1,7 @@
 import SatelliteTrailVertexShader from './SatelliteTrailVertexShader';
 import SatelliteTrailFragmentShader from './SatelliteTrailFragmentShader';
 import { AdditiveBlending, Color, DoubleSide, ShaderMaterial, ShaderMaterialParameters, UniformsLib, UniformsUtils, Vector2 } from 'three';
+import {NormalBlending} from "three/src/constants";
 
 interface SatelliteTrailMaterialProperties extends ShaderMaterialParameters {
     lineWidth: number;
@@ -8,25 +9,29 @@ interface SatelliteTrailMaterialProperties extends ShaderMaterialParameters {
     opacity: number;
     resolution: Vector2;
     sizeAttenuation: 0 | 1;
+    earthRadius: number;
 }
 
 export class SatelliteTrailMaterial extends ShaderMaterial {
     constructor(parameters: Partial<SatelliteTrailMaterialProperties>) {
         super({
             uniforms: UniformsUtils.merge([
-                UniformsLib.lights,
+                UniformsLib.common,
                 {
                     lineWidth: { value: 1 },
                     color: { value: new Color(0xffffff) },
                     opacity: { value: 1 },
                     resolution: { value: new Vector2(1, 1) },
                     sizeAttenuation: { value: 1 },
+                    earthRadius: { value: 1 },
                 },
             ]),
             vertexShader: SatelliteTrailVertexShader,
             fragmentShader: SatelliteTrailFragmentShader,
+            // Lighting is handled with a manual calculation based on the sun position
+            // lights: true,
             depthTest: true,
-            blending: AdditiveBlending,
+            blending: NormalBlending,
             transparent: true,
             side: DoubleSide,
         });
@@ -76,6 +81,15 @@ export class SatelliteTrailMaterial extends ShaderMaterial {
                 },
                 set: function (value) {
                     this.uniforms.sizeAttenuation.value = value;
+                },
+            },
+            earthRadius: {
+                enumerable: true,
+                get: function () {
+                    return this.uniforms.earthRadius.value;
+                },
+                set: function (value) {
+                    this.uniforms.earthRadius.value = value;
                 },
             },
         });

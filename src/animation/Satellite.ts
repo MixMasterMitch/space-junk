@@ -109,6 +109,6 @@ export default class Satellite {
             this.output.multiplyScalar(1 - percentage).add(this.temp.multiplyScalar(percentage));
             // this.output.copy(this.positionDiff).multiplyScalar(percentage).add(this.position1);
         }
-        return this.output;
+        return this.output.multiplyScalar(this.positionOffset);
     }
 }

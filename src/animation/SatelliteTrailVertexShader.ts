@@ -4,6 +4,7 @@ const SatelliteTrailVertexShader = `
 
 attribute vec3 previous;
 attribute vec3 next;
+attribute vec3 sunPosition;
 attribute float side;
 attribute float width;
 
@@ -12,6 +13,7 @@ uniform float opacity;
 uniform float lineWidth;
 uniform float sizeAttenuation;
 uniform vec2 resolution;
+uniform float earthRadius;
 
 varying vec4 vColor;
 
@@ -22,7 +24,23 @@ vec2 fix( vec4 i, float aspect ) {
 }
 
 void main() {
-    vColor = vec4( color, opacity );
+
+    // To determine if a vertex is in the shadow of Earth, the position vector is split into the component in the same direction as
+    // the sun and the component perpendicular. If the magnitude of the perpendicular (non-sun) component of the position is less than
+    // the radius of Earth, then the point is in Earth's shadow.
+    // I tried using the three.js shadow map, but I could not get it to produce a shadowed output.
+    bool shadow = false;
+    vec3 sunPositionUnit = normalize( sunPosition ) * -1.0;
+    float positionAndSunDotProduct = dot( position, sunPositionUnit );
+    // If the positionAndSunDotProduct is negative, then the point is on the sunny half of earth and is therefore not in shadow
+    if (positionAndSunDotProduct > 0.0) {
+        vec3 positionSunComponent = sunPositionUnit * positionDotProduct;
+        float positionNonSunComponentLength = length( position - positionSunComponent );
+        shadow = positionNonSunComponentLength < earthRadius;
+    }
+    float shadowIntensity = shadow ? 0.25 : 1.0;
+
+    vColor = vec4( color, opacity * shadowIntensity );
 
     mat4 m = projectionMatrix * modelViewMatrix;
     vec4 finalPosition = m * vec4( position, 1.0 );

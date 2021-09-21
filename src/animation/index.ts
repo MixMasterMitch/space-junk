@@ -9,7 +9,7 @@ import Moon from './Moon';
 import Stats, { Panel } from 'stats.js';
 import SceneComponent from './SceneComponent';
 import Satellites from './Satellites';
-import { getDayOfYear } from '../utils';
+import {getDayOfYear, log} from '../utils';
 
 export interface GUIData {
     autoRotate: boolean;
@@ -19,8 +19,8 @@ export interface GUIData {
     showTraceLines: boolean;
     showStars: boolean;
     fov: number;
-    rotationSpeed: number;
-    extraRotation: number;
+    speed: number; // Multiplier on real time
+    tailLength: number; // In minutes
 }
 
 export const startAnimation = async (): Promise<void> => {
@@ -72,7 +72,7 @@ export const startAnimation = async (): Promise<void> => {
     sceneComponents.push(moon);
 
     // Setup the satellites
-    const satellites = new Satellites();
+    const satellites = new Satellites(sun);
     sceneComponents.push(satellites);
 
     await Promise.all(sceneComponents.map((sc) => sc.initialize(scene, renderer)));
@@ -96,8 +96,8 @@ export const startAnimation = async (): Promise<void> => {
     gui.add(guiData, 'showTraceLines').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStars').onChange(saveLocalGUIData);
     gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
-    gui.add(guiData, 'rotationSpeed', 1, 10000).onChange(saveLocalGUIData);
-    gui.add(guiData, 'extraRotation', 0, Math.PI * 2).onChange(saveLocalGUIData);
+    gui.add(guiData, 'speed', 1, 3000).onChange(saveLocalGUIData);
+    gui.add(guiData, 'tailLength', 0, 20).onChange(saveLocalGUIData);
 
     // Setup resize handler
 
@@ -119,15 +119,20 @@ export const startAnimation = async (): Promise<void> => {
     // let date = new Date('2021-03-20T09:36-00:00');
     // let date = new Date('1970-09-22T17:20-00:00');
     // let date = new Date();
-    let lastFrameTime = Date.now();
-    const animate = () => {
+    let lastFrameTimestamp: number;
+    let frameNumber = 0;
+    const animate = (frameTimestamp: number) => {
+        frameNumber++;
         requestAnimationFrame(animate);
 
-        const now = Date.now();
-        const frameTimeDiff = now - lastFrameTime;
-        lastFrameTime = now;
-        date = new Date(date.getTime() + frameTimeDiff * guiData.rotationSpeed);
-        // console.log(date);
+        if (frameNumber <= 2) {
+            lastFrameTimestamp = frameTimestamp;
+        }
+
+        const frameTimeDiff = frameTimestamp - lastFrameTimestamp;
+        lastFrameTimestamp = frameTimestamp;
+        date = new Date(date.getTime() + frameTimeDiff * guiData.speed);
+        // log(date);
 
         stats.begin();
         stats.dom.hidden = !guiData.showStats;
@@ -148,8 +153,7 @@ export const startAnimation = async (): Promise<void> => {
 
         stats.end();
     };
-
-    animate();
+    requestAnimationFrame(animate);
 };
 
 const DEFAULT_GUI_DATA: GUIData = {
@@ -160,8 +164,8 @@ const DEFAULT_GUI_DATA: GUIData = {
     showTraceLines: false,
     showStars: true,
     fov: 70,
-    rotationSpeed: 10000,
-    extraRotation: 1,
+    speed: 60,
+    tailLength: 3,
 };
 
 const getLocalGUIData = (): GUIData => {
