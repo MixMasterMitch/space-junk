@@ -3,7 +3,6 @@ const SatelliteTrailVertexShader = `
 #include <common>
 
 attribute vec3 previous;
-attribute vec3 next;
 attribute vec3 sunPosition;
 attribute float side;
 attribute float width;
@@ -34,7 +33,7 @@ void main() {
     float positionAndSunDotProduct = dot( position, sunPositionUnit );
     // If the positionAndSunDotProduct is negative, then the point is on the sunny half of earth and is therefore not in shadow
     if (positionAndSunDotProduct > 0.0) {
-        vec3 positionSunComponent = sunPositionUnit * positionDotProduct;
+        vec3 positionSunComponent = sunPositionUnit * positionAndSunDotProduct;
         float positionNonSunComponentLength = length( position - positionSunComponent );
         shadow = positionNonSunComponentLength < earthRadius;
     }
@@ -45,27 +44,18 @@ void main() {
     mat4 m = projectionMatrix * modelViewMatrix;
     vec4 finalPosition = m * vec4( position, 1.0 );
     vec4 prevPos = m * vec4( previous, 1.0 );
-    vec4 nextPos = m * vec4( next, 1.0 );
 
     float aspectRatio = resolution.x / resolution.y;
     vec2 currentP = fix( finalPosition, aspectRatio );
     vec2 prevP = fix( prevPos, aspectRatio );
-    vec2 nextP = fix( nextPos, aspectRatio );
 
     float w = lineWidth * width;
 
-    vec2 dir;
-    if( nextP == currentP ) {
-        dir = normalize( currentP - prevP );
-    } else if( prevP == currentP ) {
-        dir = normalize( nextP - currentP );
+    vec2 dir = normalize( currentP ) * -1.0;
+    if ( prevP == currentP ) {
+        dir = vec2( 0, 0);
     } else {
-        vec2 dir1 = normalize( currentP - prevP );
-        vec2 dir2 = normalize( nextP - currentP );
-        dir = normalize( dir1 + dir2 );
-
-        vec2 perp = vec2( -dir1.y, dir1.x );
-        vec2 miter = vec2( -dir.y, dir.x );
+        dir = normalize( currentP - prevP );
     }
 
     vec4 normal = vec4( -dir.y, dir.x, 0., 1. );

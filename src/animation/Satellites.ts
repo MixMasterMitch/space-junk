@@ -60,13 +60,12 @@ export default class Satellites extends SceneComponent {
         });
         this.spheres = new Mesh(sphereGeometry, sphereMaterial);
         this.spheres.receiveShadow = true;
-        scene.add(this.spheres);
+        // scene.add(this.spheres);
 
         const trailGeometry = new BufferGeometry();
         // trailGeometry.instanceCount = Satellites.NUM_SATELLITES;
         trailGeometry.setAttribute('position', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3));
         trailGeometry.setAttribute('previous', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3));
-        trailGeometry.setAttribute('next', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3));
         trailGeometry.setAttribute('sunPosition', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2 * 3), 3));
         const sideArray = new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 2);
         trailGeometry.setAttribute('side', new BufferAttribute(sideArray, 1));
@@ -124,7 +123,6 @@ export default class Satellites extends SceneComponent {
         const translationArray = this.spheres.geometry.attributes.translation.array as Float32Array;
         const positionArray = this.trails.geometry.attributes.position.array as Float32Array;
         const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
-        const nextArray = this.trails.geometry.attributes.next.array as Float32Array;
         const sunPositionArray = this.trails.geometry.attributes.sunPosition.array as Float32Array;
 
         const advanceTrail =
@@ -141,9 +139,6 @@ export default class Satellites extends SceneComponent {
 
             // POSITIONS
             memcpy(positionArray, 6, positionArray, 0, positionArray.length - 6);
-
-            // NEXT
-            memcpy(positionArray, 6, nextArray, 0, positionArray.length - 6);
 
             // SUN POSITION
             memcpy(sunPositionArray, 6, sunPositionArray, 0, sunPositionArray.length - 6);
@@ -167,10 +162,6 @@ export default class Satellites extends SceneComponent {
             const positionVectorArray = new Float32Array([position.x, position.y, position.z]);
             positionArray.set(positionVectorArray, offset + l - 6);
             positionArray.set(positionVectorArray, offset + l - 3);
-            nextArray.set(positionVectorArray, offset + l - 12);
-            nextArray.set(positionVectorArray, offset + l - 9);
-            nextArray.set(positionVectorArray, offset + l - 6);
-            nextArray.set(positionVectorArray, offset + l - 3);
             sunPositionArray.set(sunPositionVectorArray, offset + l - 6);
             sunPositionArray.set(sunPositionVectorArray, offset + l - 3);
         }
@@ -178,7 +169,6 @@ export default class Satellites extends SceneComponent {
 
         this.trails.geometry.attributes.position.needsUpdate = true;
         this.trails.geometry.attributes.previous.needsUpdate = true;
-        this.trails.geometry.attributes.next.needsUpdate = true;
         this.trails.geometry.attributes.sunPosition.needsUpdate = true;
     }
 }
