@@ -428,6 +428,7 @@ void main (void)
             mesh: new Mesh(groundGeometry, groundMaterial),
         };
         this.ground.mesh.castShadow = true;
+        this.ground.mesh.frustumCulled = false;
         scene.add(this.ground.mesh);
 
         const skyGeometry = new SphereGeometry(Earth.ATMOSPHERE.outerRadius, 500, 500);
@@ -443,6 +444,7 @@ void main (void)
             material: skyMaterial,
             mesh: new Mesh(skyGeometry, skyMaterial),
         };
+        this.sky.mesh.frustumCulled = false;
         scene.add(this.sky.mesh);
 
         this.axesHelper = new AxesHelper(Earth.RADIUS * 1.5);

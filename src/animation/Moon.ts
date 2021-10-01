@@ -48,6 +48,7 @@ export default class Moon extends SceneComponent {
         });
         this.sphere = new Mesh(geometry, material);
         this.sphere.receiveShadow = true;
+        this.sphere.frustumCulled = false;
         scene.add(this.sphere);
 
         this.axesHelper = new AxesHelper(Moon.RADIUS * 1.5);

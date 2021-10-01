@@ -21,6 +21,7 @@ export interface GUIData {
     fov: number;
     speed: number; // Multiplier on real time
     tailLength: number; // In minutes
+    pixelRatio: number;
 }
 
 export const startAnimation = async (): Promise<void> => {
@@ -43,7 +44,7 @@ export const startAnimation = async (): Promise<void> => {
     // Setup the renderer
     const renderer = new WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio / 4);
+    renderer.setPixelRatio(guiData.pixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = PCFSoftShadowMap;
     renderer.domElement.className = 'fade-in animation-delayed';
@@ -98,6 +99,7 @@ export const startAnimation = async (): Promise<void> => {
     gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
     gui.add(guiData, 'speed', 1, 3000).onChange(saveLocalGUIData);
     gui.add(guiData, 'tailLength', 0, 20).onChange(saveLocalGUIData);
+    gui.add(guiData, 'pixelRatio', 0.5, 2).onChange(saveLocalGUIData);
 
     // Setup resize handler
 
@@ -108,7 +110,7 @@ export const startAnimation = async (): Promise<void> => {
             camera.updateProjectionMatrix();
 
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            // renderer.setPixelRatio(window.devicePixelRatio); Controlled via guiData
         },
         false,
     );
@@ -127,6 +129,10 @@ export const startAnimation = async (): Promise<void> => {
 
         if (frameNumber <= 2) {
             lastFrameTimestamp = frameTimestamp;
+        }
+
+        if (renderer.getPixelRatio() !== guiData.pixelRatio) {
+            renderer.setPixelRatio(guiData.pixelRatio);
         }
 
         const frameTimeDiff = frameTimestamp - lastFrameTimestamp;
@@ -166,6 +172,7 @@ const DEFAULT_GUI_DATA: GUIData = {
     fov: 70,
     speed: 60,
     tailLength: 3,
+    pixelRatio: window.devicePixelRatio,
 };
 
 const getLocalGUIData = (): GUIData => {

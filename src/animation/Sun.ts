@@ -49,6 +49,7 @@ export default class Sun extends SceneComponent {
         });
         this.sphere = new Mesh(geometry, material);
         this.sphere.receiveShadow = true;
+        this.sphere.frustumCulled = false;
         scene.add(this.sphere);
 
         const sunColor = new Color(0xffdd88);
@@ -119,7 +120,7 @@ export default class Sun extends SceneComponent {
         this.traceLine.render({ start: new Vector3(0, 0, 0), end: this.sphere.position }, camera, guiData);
 
         this.lensflareElements.forEach(({ element, baseSize }) => {
-            element.size = (100 / guiData.fov) * baseSize;
+            element.size = (100 / guiData.fov) * baseSize * guiData.pixelRatio;
         });
     }
 
