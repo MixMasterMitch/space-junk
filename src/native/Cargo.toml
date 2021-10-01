@@ -13,6 +13,8 @@ path = "sgp4.rs"
 [dependencies]
 sgp4 = "0.5"
 wasm-bindgen = "0.2"
+lazy_static = "1.4.0"
+js-sys = "0.3.55"
 
 [dependencies.web-sys]
 version = "0.3"
