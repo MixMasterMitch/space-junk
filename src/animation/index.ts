@@ -10,6 +10,8 @@ import Stats, { Panel } from 'stats.js';
 import SceneComponent from './SceneComponent';
 import Satellites from './Satellites';
 import {getDayOfYear, log} from '../utils';
+import {WorkerInitData, WorkerOutputData, WorkerReturnBufferData} from "../worker";
+import SatellitesGroup from "./SatellitesGroup";
 
 export interface GUIData {
     autoRotate: boolean;
@@ -25,6 +27,13 @@ export interface GUIData {
 }
 
 export const startAnimation = async (): Promise<void> => {
+    // let date = J2000_EPOCH;
+    let date = new Date('2021-09-02T19:46-07:00');
+    // let date = new Date('2021-09-22T17:21-00:00');
+    // let date = new Date('2021-03-20T09:36-00:00');
+    // let date = new Date('1970-09-22T17:20-00:00');
+    // let date = new Date();
+
     // Initialize GUI data
     const guiData: GUIData = getLocalGUIData();
 
@@ -76,6 +85,42 @@ export const startAnimation = async (): Promise<void> => {
     const satellites = new Satellites(sun);
     sceneComponents.push(satellites);
 
+    const numWorkers = 4;
+    const satelliteGroups = [];
+    for (let i = 0; i < numWorkers; i++) {
+        const satelliteGroup = new SatellitesGroup(sun);
+        sceneComponents.push(satelliteGroup);
+        satelliteGroups.push(satelliteGroup);
+        const worker = new Worker('worker.bundle.js');
+        const initMessageData: WorkerInitData = {
+            type: 'init',
+            workerNumber: i,
+            numWorkers: numWorkers,
+            startTime: date,
+            initTime: new Date(),
+            speed: guiData.speed,
+            framesPerSecond: 60,
+            numSatellites: 12_500,
+        };
+        worker.postMessage(initMessageData);
+        worker.onmessage = (e) => {
+            const data = e.data as WorkerOutputData;
+            if (data.type === 'updatePositions') {
+                const prevBuffer = satelliteGroup.updateSatelliteData(new Float32Array(data.positions));
+                if (prevBuffer === undefined) {
+                    return;
+                }
+                const returnBufferMessageData: WorkerReturnBufferData = {
+                    type: 'returnBuffer',
+                    buffer: prevBuffer.buffer,
+                };
+                worker.postMessage(returnBufferMessageData, {
+                    transfer: [returnBufferMessageData.buffer],
+                });
+            }
+        };
+    }
+
     await Promise.all(sceneComponents.map((sc) => sc.initialize(scene, renderer)));
     document.body.appendChild(renderer.domElement);
 
@@ -115,12 +160,6 @@ export const startAnimation = async (): Promise<void> => {
         false,
     );
 
-    // let date = J2000_EPOCH;
-    let date = new Date('2021-09-02T19:46-07:00');
-    // let date = new Date('2021-09-22T17:21-00:00');
-    // let date = new Date('2021-03-20T09:36-00:00');
-    // let date = new Date('1970-09-22T17:20-00:00');
-    // let date = new Date();
     let lastFrameTimestamp: number;
     let frameNumber = 0;
     const animate = (frameTimestamp: number) => {
