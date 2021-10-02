@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { kmPerSecondToModelUnits, kmToModelUnits } from './utils';
+import {kmPerSecondToModelUnits, kmToModelUnits, log} from './utils';
 
 interface Position {
     x: number;
@@ -53,17 +53,15 @@ interface SatelliteConstructor {
     new (elements: _TLE): Satellite;
 }
 
-declare global {
-    const Orb: {
-        Moon: MoonConstructor;
-        Sun: SunConstructor;
-        Satellite: SatelliteConstructor;
-        EclipticToEquatorial: (params: { date: Date; ecliptic: Position }) => Position;
-    };
-}
+declare const Orb: {
+    Moon: MoonConstructor;
+    Sun: SunConstructor;
+    Satellite: SatelliteConstructor;
+    EclipticToEquatorial: (params: { date: Date; ecliptic: Position }) => Position;
+};
 
-let sun: Sun;
-let moon: Moon;
+const sun = new Orb.Sun();
+const moon = new Orb.Moon();
 
 /**
  * @param body Which body (sun, moon, satellite, etc.) to get a position of.
@@ -82,16 +80,10 @@ function bodyPosition(body: Body, date: Date, eclipticToEquatorial: boolean, out
 }
 
 export function sunPosition(date: Date, outputPosition: Vector3, outputVelocity?: Vector3): void {
-    if (sun === undefined) {
-        sun = new Orb.Sun();
-    }
     return bodyPosition(sun, date, false, outputPosition, outputVelocity);
 }
 
 export function moonPosition(date: Date, outputPosition: Vector3, outputVelocity?: Vector3): void {
-    if (moon === undefined) {
-        moon = new Orb.Moon();
-    }
     return bodyPosition(moon, date, true, outputPosition, outputVelocity);
 }
 

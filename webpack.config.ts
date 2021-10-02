@@ -5,7 +5,6 @@ import WasmPackPlugin from '@wasm-tool/wasm-pack-plugin';
 const config: webpack.Configuration = {
     entry: {
         main: path.resolve(__dirname, 'src/index.ts'),
-        worker: path.resolve(__dirname, 'src/worker.ts'),
     },
     resolve: {
         extensions: ['.ts', '.js'],
