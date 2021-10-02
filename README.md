@@ -10,3 +10,8 @@
 * Native       = 25, 26, 22 (24 avg)
 ^ One native call per iteration
 ```
+
+### Images to Video ffmpeg
+```
+ffmpeg -framerate 60 -i ./img%04d.png -c:v libx264 -pix_fmt yuv420p ./output.mp4
+```

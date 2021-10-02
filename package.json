@@ -9,7 +9,8 @@
         "copy-public-to-dist": "cp -r public dist",
         "develop": "cross-env TS_NODE_PROJECT=\"tsconfig-for-webpack-config.json\" webpack serve --config webpack.dev.config.ts",
         "lint": "eslint 'src/**/*.ts'",
-        "release": "yarn lint && yarn build && yarn copy-public-to-dist"
+        "release": "yarn lint && yarn build && yarn copy-public-to-dist",
+        "image-server": "ts-node src/imageServer.ts"
     },
     "repository": {
         "type": "git",

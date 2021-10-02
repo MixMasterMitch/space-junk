@@ -6,3 +6,4 @@ src/native/pkg
 src/native/target
 .yarn/
 .DS_Store
+images/

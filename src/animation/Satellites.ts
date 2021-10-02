@@ -22,7 +22,7 @@ import SceneComponent from './SceneComponent';
 
 export default class Satellites extends SceneComponent {
     private static NUM_SATELLITES = 25000;
-    private static NUM_TAIL_SEGMENTS = 20;
+    private static NUM_TAIL_SEGMENTS = 40;
     private static NUM_TAIL_TRIANGLES = Satellites.NUM_TAIL_SEGMENTS + 1;
     private static NUM_TAIL_VERTICES = Satellites.NUM_TAIL_SEGMENTS + 3;
 

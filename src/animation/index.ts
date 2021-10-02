@@ -18,6 +18,7 @@ export interface GUIData {
     showShadowHelper: boolean;
     showTraceLines: boolean;
     showStars: boolean;
+    recordFrames: boolean;
     fov: number;
     speed: number; // Multiplier on real time
     tailLength: number; // In minutes
@@ -96,8 +97,9 @@ export const startAnimation = async (): Promise<void> => {
     gui.add(guiData, 'showShadowHelper').onChange(saveLocalGUIData);
     gui.add(guiData, 'showTraceLines').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStars').onChange(saveLocalGUIData);
+    gui.add(guiData, 'recordFrames').onChange(saveLocalGUIData);
     gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
-    gui.add(guiData, 'speed', 1, 3000).onChange(saveLocalGUIData);
+    gui.add(guiData, 'speed', 1, 100).onChange(saveLocalGUIData);
     gui.add(guiData, 'tailLength', 0, 20).onChange(saveLocalGUIData);
     gui.add(guiData, 'pixelRatio', 0.5, 2).onChange(saveLocalGUIData);
 
@@ -123,7 +125,7 @@ export const startAnimation = async (): Promise<void> => {
     // let date = new Date();
     let lastFrameTimestamp: number;
     let frameNumber = 0;
-    const animate = (frameTimestamp: number) => {
+    const animate = async (frameTimestamp: number) => {
         frameNumber++;
         requestAnimationFrame(animate);
 
@@ -135,7 +137,7 @@ export const startAnimation = async (): Promise<void> => {
             renderer.setPixelRatio(guiData.pixelRatio);
         }
 
-        const frameTimeDiff = frameTimestamp - lastFrameTimestamp;
+        const frameTimeDiff = guiData.recordFrames ? 16 : frameTimestamp - lastFrameTimestamp;
         lastFrameTimestamp = frameTimestamp;
         date = new Date(date.getTime() + frameTimeDiff * guiData.speed);
         // log(date);
@@ -156,11 +158,32 @@ export const startAnimation = async (): Promise<void> => {
         satellites.render(date, camera, guiData);
 
         renderer.render(scene, camera);
+        if (guiData.recordFrames) {
+            const imageBase64 = renderer.domElement.toDataURL('image/png').split(',')[1];
+            const response = await fetch('http://localhost:3002/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'image/png',
+                },
+                body: base64ToArrayBuffer(imageBase64),
+            });
+            log(await response.json());
+        }
 
         stats.end();
     };
     requestAnimationFrame(animate);
 };
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
 
 const DEFAULT_GUI_DATA: GUIData = {
     autoRotate: true,
@@ -169,6 +192,7 @@ const DEFAULT_GUI_DATA: GUIData = {
     showShadowHelper: false,
     showTraceLines: false,
     showStars: true,
+    recordFrames: true,
     fov: 70,
     speed: 60,
     tailLength: 3,
