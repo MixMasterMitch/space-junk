@@ -32,14 +32,13 @@ const findNextDateToPull = (startDayString: string, endDayString: string, existi
     return curDayString;
 };
 
-const START_DATE = '1959-02-17'; // Launch of Vanguard 2. Sputnik 1 was launched '1957-12-04' but I do not have good data for satellites before Vanguard 2.
+const START_DATE = '1959-04-24'; // Shortly after launch of Vanguard 2. Sputnik 1 was launched '1957-12-04' but I do not have good data for satellites before Vanguard 2.
 const END_DATE = getDayStringFromDate(new Date());
 
 const spaceTrack = new SpaceTrack(credentials);
 
 const run = async (): Promise<void> => {
     const files = fs.readdirSync('resources/raw');
-    // console.log(files);
 
     let curDayString = START_DATE;
     const pullNextFile = async () => {
@@ -60,12 +59,15 @@ const run = async (): Promise<void> => {
         console.log(`Gzip results: before = ${sizeBeforeGzip}, after = ${sizeAfterGzip} (${reduction}%)`);
         const filePath = `resources/raw/${curDayString}.csv.gz`;
         console.log(`Writing data to ${filePath}`);
-        fs.writeFileSync(filePath, csv);
+        fs.writeFileSync(filePath, gzipped);
         console.log(`Done processing ${curDayString}`);
         console.log('===========================\n');
         curDayString = nextDayString;
+
+        if (nextDayString !== END_DATE) {
+            setTimeout(pullNextFile, 3 * 1000);
+        }
     };
-    setInterval(pullNextFile, 15 * 1000);
     await pullNextFile();
 
     // await new SpaceTrack(credentials).getTLEsForDateRange('2020-01-01', '2020-01-08');

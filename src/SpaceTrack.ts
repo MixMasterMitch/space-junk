@@ -1,4 +1,4 @@
-import request, { CookieJar } from 'request';
+import request from 'request';
 
 interface Credentials {
     username: string;

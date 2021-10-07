@@ -7,3 +7,4 @@ src/native/target
 .yarn/
 .DS_Store
 images/
+resources/
