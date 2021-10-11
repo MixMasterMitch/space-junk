@@ -3,26 +3,23 @@ import zlib from 'zlib';
 import es, { MapStream } from 'event-stream';
 import { Readable } from 'stream';
 import Immediate = NodeJS.Immediate;
+import { getDayStringFromDate, getNextEndDate } from '../src/SatellitesData';
 
-type KnownSatellites = { [catalogId: string]: Satellite };
 interface Satellite {
     catalogId: string;
     objectId: string;
     objectName: string;
     objectType: string;
     size: string;
-    countryCode: string;
-    launchDate: string;
-    launchSite: string;
+    launchData: LaunchData;
     decayDate: string;
 }
 
-interface TLE {
-    catalogId: string;
-    epoch: number;
-    revAtEpoch: string;
-    lineOne: string;
-    lineTwo: string;
+interface LaunchData {
+    launchId: string;
+    countryCode: string;
+    launchDate: string;
+    launchSite: string;
 }
 
 interface RawRecord {
@@ -70,85 +67,6 @@ interface RawRecord {
 
 const TLE_GAP = 2 * 7 * 24 * 60 * 60 * 1000; // Two weeks
 
-const getDayStringFromDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
-};
-
-const getDateFromDayString = (dayString: string): Date => {
-    const parts = dayString.split('-');
-    return new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0));
-};
-
-const incrementOneYear = (date: Date): Date => {
-    return new Date(
-        Date.UTC(
-            date.getUTCFullYear() + 1,
-            date.getUTCMonth(),
-            date.getUTCDate(),
-            date.getUTCHours(),
-            date.getUTCMinutes(),
-            date.getUTCSeconds(),
-            date.getUTCMilliseconds(),
-        ),
-    );
-};
-
-const incrementThreeMonths = (date: Date): Date => {
-    return new Date(
-        Date.UTC(
-            date.getUTCFullYear(),
-            date.getUTCMonth() + 3,
-            date.getUTCDate(),
-            date.getUTCHours(),
-            date.getUTCMinutes(),
-            date.getUTCSeconds(),
-            date.getUTCMilliseconds(),
-        ),
-    );
-};
-
-const incrementOneMonth = (date: Date): Date => {
-    return new Date(
-        Date.UTC(
-            date.getUTCFullYear(),
-            date.getUTCMonth() + 1,
-            date.getUTCDate(),
-            date.getUTCHours(),
-            date.getUTCMinutes(),
-            date.getUTCSeconds(),
-            date.getUTCMilliseconds(),
-        ),
-    );
-};
-
-const increment15Days = (date: Date): Date => {
-    return new Date(
-        Date.UTC(
-            date.getUTCFullYear(),
-            date.getUTCMonth(),
-            date.getUTCDate() + 15,
-            date.getUTCHours(),
-            date.getUTCMinutes(),
-            date.getUTCSeconds(),
-            date.getUTCMilliseconds(),
-        ),
-    );
-};
-
-const getNextEndDate = (startDate: Date): Date => {
-    if (startDate.getTime() < getDateFromDayString('1970-01-01').getTime()) {
-        return incrementOneYear(startDate);
-    } else if (startDate.getTime() < getDateFromDayString('1975-01-01').getTime()) {
-        return incrementThreeMonths(startDate);
-    } else if (startDate.getTime() < getDateFromDayString('1990-01-01').getTime()) {
-        return incrementOneMonth(startDate);
-    } else {
-        return increment15Days(startDate);
-    }
-};
-
-const START_DATE = getDateFromDayString('1959-01-01');
-
 const run = async (): Promise<void> => {
     console.log('Listing files');
     const files = fs
@@ -158,7 +76,8 @@ const run = async (): Promise<void> => {
     console.log(`Found ${files.length} files`);
     console.log('========================');
 
-    const satellites: KnownSatellites = {};
+    const satellites: { [catalogId: string]: Satellite } = {};
+    const launches: { [launchId: string]: LaunchData } = {};
     const prevEpochs: { [catalogId: string]: number } = {};
     let candidateEpochs: { [catalogId: string]: number } = {};
     let candidateTLEs: { [catalogId: string]: string } = {};
@@ -187,8 +106,8 @@ const run = async (): Promise<void> => {
         }
     };
 
-    let currentTLEFileStart = START_DATE;
-    let currentTLEFileEnd = getNextEndDate(START_DATE);
+    let currentTLEFileStart = getNextEndDate();
+    let currentTLEFileEnd = getNextEndDate(currentTLEFileStart);
     let tleWriteStream = zlib.createGzip();
     tleWriteStream.pipe(fs.createWriteStream(`./resources/filtered/${getDayStringFromDate(currentTLEFileStart)}.csv.gz`));
     let immediate: Immediate;
@@ -199,11 +118,9 @@ const run = async (): Promise<void> => {
             console.log(`Reading data from ${filePath}`);
             const tleReadStream = fs.createReadStream(filePath).pipe(zlib.createGunzip()).pipe(es.split());
             tleReadStream.on('data', async (value: string) => {
-                // const iterationId = Math.round(Math.random() * 10000);
                 if (value.length === 0 || value.startsWith('CCSDS_OMM_VERS')) {
                     return;
                 }
-                // console.log('start ' + iterationId);
                 const parts = value.slice(1, value.length - 2).split('","');
                 const catalogId = parts[19];
                 if (catalogId === '') {
@@ -219,53 +136,63 @@ const run = async (): Promise<void> => {
                 const launchSite = parts[33];
                 const decayDate = parts[34];
                 const epoch = new Date(parts[10]).getTime();
-                const satellite = satellites[catalogId];
+                let launchId: string | undefined;
+                let launchData: LaunchData | undefined;
+                if (objectId !== '') {
+                    launchId = objectId.slice(0, '####-###'.length);
+                    launchData = launches[launchId];
+                }
+                if (launchData === undefined && launchId !== undefined) {
+                    launchData = {
+                        launchId,
+                        countryCode,
+                        launchDate,
+                        launchSite,
+                    };
+                    launches[launchId] = launchData;
+                }
+                let satellite: Satellite = satellites[catalogId];
                 if (satellite === undefined) {
-                    satellites[catalogId] = {
+                    satellite = {
                         catalogId,
                         objectId,
                         objectName,
                         objectType,
                         size,
-                        countryCode,
-                        launchDate,
-                        launchSite,
+                        launchData: launchData || {
+                            launchId: '',
+                            countryCode,
+                            launchDate,
+                            launchSite,
+                        },
                         decayDate,
                     };
+                    satellites[catalogId] = satellite;
                     prevEpochs[catalogId] = epoch;
                 } else {
                     if (satellite.objectId === '' && objectId !== '') {
                         satellite.objectId = objectId;
+                        satellite.launchData = launchData as LaunchData;
                     }
-                    if (
-                        (satellite.objectName === '' || satellite.objectName.startsWith('TBA') || satellite.objectName.startsWith('UNKNOWN')) &&
-                        objectName !== '' &&
-                        !objectName.startsWith('TBA') &&
-                        !objectName.startsWith('UNKNOWN')
-                    ) {
+                    if (objectName !== '' && !objectName.startsWith('TBA') && !objectName.startsWith('UNKNOWN') && !objectName.startsWith('OBJECT')) {
                         satellite.objectName = objectName;
                     }
-                    if (
-                        (satellite.objectType === '' || satellite.objectType.startsWith('TBA') || satellite.objectType.startsWith('UNKNOWN')) &&
-                        objectType !== '' &&
-                        !objectType.startsWith('TBA') &&
-                        !objectType.startsWith('UNKNOWN')
-                    ) {
+                    if (objectType !== '' && !objectType.startsWith('TBA') && !objectType.startsWith('UNKNOWN')) {
                         satellite.objectType = objectType;
                     }
-                    if (satellite.size === '' && size !== '') {
+                    if (size !== '') {
                         satellite.size = size;
                     }
-                    if (satellite.countryCode === '' && countryCode !== '') {
-                        satellite.countryCode = countryCode;
+                    if (countryCode !== '' && !countryCode.startsWith('TBD')) {
+                        satellite.launchData.countryCode = countryCode;
                     }
-                    if (satellite.launchDate === '' && launchDate !== '') {
-                        satellite.launchDate = launchDate;
+                    if (launchDate !== '') {
+                        satellite.launchData.launchDate = launchDate;
                     }
-                    if (satellite.launchSite === '' && launchSite !== '') {
-                        satellite.launchSite = launchSite;
+                    if (launchSite !== '' && !launchSite.startsWith('NULL')) {
+                        satellite.launchData.launchSite = launchSite;
                     }
-                    if (satellite.decayDate === '' && decayDate !== '') {
+                    if (decayDate !== '') {
                         satellite.decayDate = decayDate;
                     }
                 }
@@ -308,12 +235,6 @@ const run = async (): Promise<void> => {
                 }
                 candidateEpochs[catalogId] = nextEpoch;
                 candidateTLEs[catalogId] = nextTLE;
-                // if (count > 10) {
-                //     return;
-                // }
-                // count++;
-                // console.log(parts);
-                // console.log('end ' + iterationId);
             });
             tleReadStream.on('error', (err) => {
                 console.log(`Failed processing ${filePath}`);
@@ -337,58 +258,24 @@ const run = async (): Promise<void> => {
     Readable.from(satelliteValues)
         .pipe(
             es.map((satellite: Satellite, cb: (error?: Error | null, newValue?: string) => void) => {
-                return cb(null, Object.values(satellite).join(',') + '\n');
+                const data = [
+                    satellite.catalogId,
+                    satellite.objectId,
+                    satellite.objectName,
+                    satellite.objectType,
+                    satellite.size,
+                    satellite.launchData.countryCode,
+                    satellite.launchData.launchDate,
+                    satellite.launchData.launchSite,
+                    satellite.decayDate,
+                ];
+                return cb(null, data.join(',') + '\n');
             }),
         )
         .pipe(zlib.createGzip())
         .pipe(fs.createWriteStream('./resources/filtered/satellites.csv.gz'));
-    // satelliteValues.forEach((satellite) => {
-    //     writeStream.write(Object.values(satellite).join(',') + '\n');
-    // });
-    // writeStream.end();
     console.log('Completed writing satellites file');
     console.log('========================');
-    // .pipe(
-    //     es.map((value: string, cb: (error?: Error | null, newValue?: string[]) => void) => {
-    //         if (value.length === 0 || value.startsWith('CCSDS_OMM_VERS')) {
-    //             return cb();
-    //         }
-    //         const parts = value.slice(1, value.length - 2).split('","');
-    //         cb(null, parts);
-    //     }),
-    // )
-    // .pipe(
-    //     es.map((value: string[], cb: (error?: Error | null, newValue?: string[]) => void) => {
-    //         if (count > 10) {
-    //             return cb();
-    //         }
-    //         count++;
-    //         return cb(null, value);
-    //     }),
-    // )
-    // .pipe(process.stdout);
-    // const gzipped = fs.readFileSync(filePath);
-    //
-    // console.log('Unzipping data');
-    // const csv = zlib.gunzipSync(gzipped);
-    // await parseCSV(
-    //     csv,
-    //     satellites,
-    //     (satellite) => {
-    //         objectInsertStatement.run(
-    //             satellite.objectId,
-    //             satellite.objectType,
-    //             satellite.size,
-    //             satellite.countryCode,
-    //             satellite.launchDate,
-    //             satellite.launchSite,
-    //             satellite.decayDate,
-    //         );
-    //     },
-    //     (tle) => {
-    //         tleInsertStatement.run(tle.objectId, tle.epoch, tle.revAtEpoch, tle.lineOne, tle.lineTwo);
-    //     },
-    // );
 };
 
 run().then().catch(console.error);

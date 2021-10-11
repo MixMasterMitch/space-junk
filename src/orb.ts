@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
 import {kmPerSecondToModelUnits, kmToModelUnits, log} from './utils';
+import {Satellite} from "./SatellitesData";
 
 interface Position {
     x: number;
@@ -43,14 +44,12 @@ interface _TLE {
     second_line: string;
 }
 
-declare class Satellite extends Body {
+export declare class SatelliteData extends Body {
     constructor(elements: _TLE);
 }
 
-export type SatelliteData = Satellite;
-
 interface SatelliteConstructor {
-    new (elements: _TLE): Satellite;
+    new (elements: _TLE): SatelliteData;
 }
 
 declare const Orb: {
@@ -95,6 +94,14 @@ export function initializeSatellite(tle: TLE): SatelliteData {
     });
 }
 
-export function satellitePosition(date: Date, satellite: SatelliteData, outputPosition: Vector3, outputVelocity?: Vector3): void {
-    return bodyPosition(satellite, date, false, outputPosition, outputVelocity);
+export function satellitePosition(date: Date, satellite: Satellite, outputPosition: Vector3, outputVelocity?: Vector3): void {
+    const satelliteData = satellite.positionDataSet.getClosestSatelliteData(date);
+    if (satelliteData === null) {
+        outputPosition.set(0, 0, 0);
+        if (outputVelocity !== undefined) {
+            outputVelocity.set(0, 0, 0);
+        }
+        return;
+    }
+    return bodyPosition(satelliteData, date, false, outputPosition, outputVelocity);
 }

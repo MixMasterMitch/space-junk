@@ -12,39 +12,40 @@ import {
     Vector2,
 } from 'three';
 import Earth from './Earth';
-import {GUIData} from './index';
-import Satellite from './Satellite';
-import {SatelliteTrailMaterial} from './SatelliteTrailMaterial';
-import {SatelliteSphereMaterial} from './SatelliteSphereMaterial';
-import {memcpy} from './utils';
+import { GUIData } from './index';
+import SatellitePositionState from './SatellitePositionState';
+import { SatelliteTrailMaterial } from './SatelliteTrailMaterial';
+import { SatelliteSphereMaterial } from './SatelliteSphereMaterial';
+import { memcpy } from './utils';
 import Sun from './Sun';
 import SceneComponent from './SceneComponent';
+import SatellitesData from '../SatellitesData';
 
 export default class Satellites extends SceneComponent {
-    private static NUM_SATELLITES = 25000;
     private static NUM_TAIL_SEGMENTS = 40;
     private static NUM_TAIL_TRIANGLES = Satellites.NUM_TAIL_SEGMENTS + 1;
     private static NUM_TAIL_VERTICES = Satellites.NUM_TAIL_SEGMENTS + 3;
 
-    private satelliteData?: Satellite[];
     private spheres?: Mesh;
     private trails?: Mesh;
-    private trailTimestamps: number[] = [];
 
     private sun: Sun;
+    private satellitePositionStates: SatellitePositionState[] = [];
+    private trailTimestamps: number[] = [];
 
-    constructor(sun: Sun) {
+    constructor(sun: Sun, satellitesData: SatellitesData) {
         super();
         this.sun = sun;
+        for (const satellite of satellitesData) {
+            this.satellitePositionStates.push(new SatellitePositionState(satellite, 60 * 1000));
+        }
     }
 
     public async initialize(scene: Scene, renderer: Renderer): Promise<void> {
         // Initialize all of the satellite data
-        this.satelliteData = [];
-        for (let i = 0; i < Satellites.NUM_SATELLITES; i++) {
-            const satelliteData = new Satellite(Math.round(-Math.random() * 14 * 24 * 60 * 60 * 1000), Math.random() + 1, 60 * 1000);
-            await satelliteData.initialize(scene, renderer);
-            this.satelliteData.push(satelliteData);
+        const numSatellites = this.satellitePositionStates.length;
+        for (const satellitePositionState of this.satellitePositionStates) {
+            await satellitePositionState.initialize(scene, renderer);
         }
 
         // The satellite spheres geometry is stored as an InstancedBufferGeometry, meaning that all of the spheres are rendered as a single geometry,
@@ -52,8 +53,8 @@ export default class Satellites extends SceneComponent {
         // (e.g. the translation of each sphere) are set per instance.
         // The translation math to shift the position of each vertex of each sphere is being done in the GPU to free up the CPU.
         const sphereGeometry = new InstancedBufferGeometry().copy(new SphereBufferGeometry(Earth.RADIUS * 0.01, 12, 8));
-        sphereGeometry.instanceCount = Satellites.NUM_SATELLITES;
-        sphereGeometry.setAttribute('translation', new InstancedBufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * 3), 3));
+        sphereGeometry.instanceCount = numSatellites;
+        sphereGeometry.setAttribute('translation', new InstancedBufferAttribute(new Float32Array(numSatellites * 3), 3));
 
         const sphereMaterial = new SatelliteSphereMaterial({
             diffuse: new Color(0xffffff),
@@ -65,21 +66,22 @@ export default class Satellites extends SceneComponent {
         scene.add(this.spheres);
 
         const trailGeometry = new BufferGeometry();
-        // trailGeometry.instanceCount = Satellites.NUM_SATELLITES;
-        trailGeometry.setAttribute('position', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 3), 3));
-        trailGeometry.setAttribute('previous', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 3), 3));
-        trailGeometry.setAttribute('sunPosition', new BufferAttribute(new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES * 3), 3));
-        const sideArray = new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES);
+        // trailGeometry.instanceCount = SatellitesData.NUM_SATELLITES;
+        trailGeometry.setAttribute('position', new BufferAttribute(new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES * 3), 3));
+        trailGeometry.setAttribute('previous', new BufferAttribute(new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES * 3), 3));
+        // TODO: convert sun position into a uniform
+        trailGeometry.setAttribute('sunPosition', new BufferAttribute(new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES * 3), 3));
+        const sideArray = new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES);
         trailGeometry.setAttribute('side', new BufferAttribute(sideArray, 1));
-        for (let i = 0; i < Satellites.NUM_SATELLITES; i++) {
+        for (let i = 0; i < numSatellites; i++) {
             const offset = i * Satellites.NUM_TAIL_VERTICES;
             for (let j = 0; j < Satellites.NUM_TAIL_VERTICES; j++) {
                 sideArray[offset + j * 2] = i % 2 === 0 ? 1 : -1;
             }
         }
-        const widthArray = new Float32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_VERTICES);
+        const widthArray = new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES);
         trailGeometry.setAttribute('width', new BufferAttribute(widthArray, 1));
-        for (let i = 0; i < Satellites.NUM_SATELLITES; i++) {
+        for (let i = 0; i < numSatellites; i++) {
             const offset = i * Satellites.NUM_TAIL_VERTICES;
             widthArray[offset] = 0;
             for (let j = 0; j < Satellites.NUM_TAIL_VERTICES - 2; j++) {
@@ -87,9 +89,9 @@ export default class Satellites extends SceneComponent {
             }
             widthArray[offset + Satellites.NUM_TAIL_VERTICES - 1] = 1;
         }
-        const indexArray = new Uint32Array(Satellites.NUM_SATELLITES * Satellites.NUM_TAIL_TRIANGLES * 3);
+        const indexArray = new Uint32Array(numSatellites * Satellites.NUM_TAIL_TRIANGLES * 3);
         trailGeometry.setIndex(new BufferAttribute(indexArray, 1));
-        for (let i = 0; i < Satellites.NUM_SATELLITES; i++) {
+        for (let i = 0; i < numSatellites; i++) {
             const offset = i * Satellites.NUM_TAIL_TRIANGLES * 3;
             const vertexOffset = i * Satellites.NUM_TAIL_VERTICES;
             for (let j = 0; j < Satellites.NUM_TAIL_TRIANGLES; j++) {
@@ -115,7 +117,7 @@ export default class Satellites extends SceneComponent {
     }
 
     public render(date: Date, camera: Camera, guiData: GUIData): void {
-        if (!this.satelliteData || !this.spheres || !this.trails) {
+        if (!this.spheres || !this.trails) {
             return;
         }
 
@@ -147,15 +149,15 @@ export default class Satellites extends SceneComponent {
         const sunPositionVectorArray = new Float32Array([sunPosition.x, sunPosition.y, sunPosition.z]);
 
         // For each satellite, get an updated position and save it to the translation array and update the trail
-        for (let i = 0; i < Satellites.NUM_SATELLITES; i++) {
-            const satelliteData = this.satelliteData[i];
+        for (let i = 0; i < this.satellitePositionStates.length; i++) {
+            const satelliteData = this.satellitePositionStates[i];
             const position = satelliteData.getPosition(date);
 
             translationArray[i * 3] = position.x;
             translationArray[i * 3 + 1] = position.y;
             translationArray[i * 3 + 2] = position.z;
 
-            const l = positionArray.length / Satellites.NUM_SATELLITES;
+            const l = positionArray.length / this.satellitePositionStates.length;
             const offset = i * Satellites.NUM_TAIL_VERTICES * 3;
 
             const positionVectorArray = new Float32Array([position.x, position.y, position.z]);

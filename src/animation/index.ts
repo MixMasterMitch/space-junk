@@ -1,6 +1,6 @@
 import { Scene, PerspectiveCamera, WebGLRenderer, PCFSoftShadowMap, Vector3 } from 'three';
 import Earth from './Earth';
-import { J2000_EPOCH, SOLAR_SYSTEM_RADIUS } from '../constants';
+import { SOLAR_SYSTEM_RADIUS } from '../constants';
 import Sun from './Sun';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Stars from './Stars';
@@ -9,7 +9,8 @@ import Moon from './Moon';
 import Stats, { Panel } from 'stats.js';
 import SceneComponent from './SceneComponent';
 import Satellites from './Satellites';
-import {getDayOfYear, log} from '../utils';
+import { getDayOfYear, log } from '../utils';
+import SatellitesData from '../SatellitesData';
 
 export interface GUIData {
     autoRotate: boolean;
@@ -25,7 +26,7 @@ export interface GUIData {
     pixelRatio: number;
 }
 
-export const startAnimation = async (): Promise<void> => {
+export const startAnimation = async (satellitesData: SatellitesData): Promise<void> => {
     // Initialize GUI data
     const guiData: GUIData = getLocalGUIData();
 
@@ -74,7 +75,7 @@ export const startAnimation = async (): Promise<void> => {
     sceneComponents.push(moon);
 
     // Setup the satellites
-    const satellites = new Satellites(sun);
+    const satellites = new Satellites(sun, satellitesData);
     sceneComponents.push(satellites);
 
     await Promise.all(sceneComponents.map((sc) => sc.initialize(scene, renderer)));
@@ -104,18 +105,22 @@ export const startAnimation = async (): Promise<void> => {
     gui.add(guiData, 'pixelRatio', 0.5, 2).onChange(saveLocalGUIData);
 
     // Setup resize handler
-
-    window.addEventListener(
-        'resize',
-        () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            // renderer.setPixelRatio(window.devicePixelRatio); Controlled via guiData
-        },
-        false,
-    );
+    let recording = guiData.recordFrames;
+    const updateRendererSize = () => {
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        let pixelRatio = guiData.pixelRatio;
+        if (recording) {
+            width = 3840;
+            height = 2160;
+            pixelRatio = 1;
+        }
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(pixelRatio);
+    };
+    window.addEventListener('resize', updateRendererSize, false);
 
     // let date = J2000_EPOCH;
     let date = new Date('2021-09-02T19:46-07:00');
@@ -123,6 +128,7 @@ export const startAnimation = async (): Promise<void> => {
     // let date = new Date('2021-03-20T09:36-00:00');
     // let date = new Date('1970-09-22T17:20-00:00');
     // let date = new Date();
+    await satellitesData.loadTLEs(date);
     let lastFrameTimestamp: number;
     let frameNumber = 0;
     const animate = async (frameTimestamp: number) => {
@@ -133,11 +139,12 @@ export const startAnimation = async (): Promise<void> => {
             lastFrameTimestamp = frameTimestamp;
         }
 
-        if (renderer.getPixelRatio() !== guiData.pixelRatio) {
-            renderer.setPixelRatio(guiData.pixelRatio);
+        if (renderer.getPixelRatio() !== guiData.pixelRatio || recording !== guiData.recordFrames) {
+            recording = guiData.recordFrames;
+            updateRendererSize();
         }
 
-        const frameTimeDiff = guiData.recordFrames ? 16 : frameTimestamp - lastFrameTimestamp;
+        const frameTimeDiff = recording ? 16 : frameTimestamp - lastFrameTimestamp;
         lastFrameTimestamp = frameTimestamp;
         date = new Date(date.getTime() + frameTimeDiff * guiData.speed);
         // log(date);
@@ -158,7 +165,7 @@ export const startAnimation = async (): Promise<void> => {
         satellites.render(date, camera, guiData);
 
         renderer.render(scene, camera);
-        if (guiData.recordFrames) {
+        if (recording) {
             const imageBase64 = renderer.domElement.toDataURL('image/png').split(',')[1];
             const response = await fetch('http://localhost:3002/', {
                 method: 'POST',
@@ -173,6 +180,11 @@ export const startAnimation = async (): Promise<void> => {
         stats.end();
     };
     requestAnimationFrame(animate);
+
+    setInterval(() => {
+        satellitesData.purge(date);
+        satellitesData.loadTLEs(date);
+    }, 50);
 };
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {

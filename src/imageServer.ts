@@ -15,6 +15,7 @@ const server = http.createServer(function (req, res) {
         return;
     }
 
+    console.log(`Writing file ${imageNumber}`);
     const fileOutputStream = fs.createWriteStream(`./images/img${('0000' + imageNumber).slice(-4)}.png`);
     imageNumber++;
     req.pipe(fileOutputStream);

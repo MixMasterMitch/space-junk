@@ -1,14 +1,8 @@
 import { Renderer, Scene, Vector3 } from 'three';
-import { initializeSatellite, SatelliteData, satellitePosition } from '../orb';
-import { log } from '../utils';
+import { satellitePosition } from '../orb';
+import { Satellite } from '../SatellitesData';
 
-export default class Satellite {
-    // A random time shift to apply to all position calculations
-    // TODO: Remove
-    private readonly timeOffset: number;
-    // A random position shift to apply to all position calculations
-    // TODO: Remove
-    private readonly positionOffset: number;
+export default class SatellitePositionState {
     // The period of time (in model time, not real time) between accurate SGP4 position calculations
     private readonly updatePeriodMs: number;
     // An offset on the initial SGP4 position calculation to distribute the calculations for each satellite across frames
@@ -16,7 +10,7 @@ export default class Satellite {
     // A reusable vector for returning positions. Used to reduce object creations.
     private readonly output: Vector3;
     private readonly temp: Vector3;
-    private satellite?: SatelliteData;
+    private satellite: Satellite;
     // SGP4 position 1 for interpolation
     private position1?: Vector3;
     private position1Velocity?: Vector3;
@@ -29,9 +23,8 @@ export default class Satellite {
     private positionDiff?: Vector3;
     private positionTimestampDiff?: number;
 
-    public constructor(timeOffset: number, positionOffset: number, updatePeriodMs: number) {
-        this.timeOffset = timeOffset;
-        this.positionOffset = positionOffset;
+    public constructor(satellite: Satellite, updatePeriodMs: number) {
+        this.satellite = satellite;
         this.updatePeriodMs = updatePeriodMs;
         this.updatePeriodJitterMs = Math.round(Math.random() * updatePeriodMs);
         this.output = new Vector3();
@@ -39,19 +32,14 @@ export default class Satellite {
     }
 
     public async initialize(scene: Scene, renderer: Renderer): Promise<void> {
-        const tle = {
-            name: 'ISS',
-            line1: `1 25544U 98067A   21245.53748218  .00003969  00000-0  81292-4 0  9995`,
-            line2: `2 25544  51.6442 320.2331 0003041 346.4163 145.5195 15.48587491300581`,
-        };
-        this.satellite = initializeSatellite(tle);
+        // Do nothing
     }
 
     public getPosition(date: Date): Vector3 {
         if (!this.satellite) {
             return undefined as unknown as Vector3;
         }
-        const dateTime = date.getTime() + this.timeOffset;
+        const dateTime = date.getTime();
         if (
             this.position1 === undefined ||
             this.position1Velocity === undefined ||
@@ -109,6 +97,6 @@ export default class Satellite {
             this.output.multiplyScalar(1 - percentage).add(this.temp.multiplyScalar(percentage));
             // this.output.copy(this.positionDiff).multiplyScalar(percentage).add(this.position1);
         }
-        return this.output.multiplyScalar(this.positionOffset);
+        return this.output;
     }
 }
