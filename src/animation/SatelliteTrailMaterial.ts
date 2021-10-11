@@ -1,6 +1,16 @@
 import SatelliteTrailVertexShader from './SatelliteTrailVertexShader';
 import SatelliteTrailFragmentShader from './SatelliteTrailFragmentShader';
-import { AdditiveBlending, Color, DoubleSide, ShaderMaterial, ShaderMaterialParameters, UniformsLib, UniformsUtils, Vector2 } from 'three';
+import {
+    AdditiveBlending,
+    Color,
+    DoubleSide,
+    ShaderMaterial,
+    ShaderMaterialParameters,
+    UniformsLib,
+    UniformsUtils,
+    Vector2,
+    Vector3
+} from 'three';
 import {NormalBlending} from "three/src/constants";
 
 interface SatelliteTrailMaterialProperties extends ShaderMaterialParameters {
@@ -13,6 +23,8 @@ interface SatelliteTrailMaterialProperties extends ShaderMaterialParameters {
 }
 
 export class SatelliteTrailMaterial extends ShaderMaterial {
+    public sunPosition: Vector3 = null as unknown as Vector3; // Indirectly set in constructor
+
     constructor(parameters: Partial<SatelliteTrailMaterialProperties>) {
         super({
             uniforms: UniformsUtils.merge([
@@ -24,6 +36,7 @@ export class SatelliteTrailMaterial extends ShaderMaterial {
                     resolution: { value: new Vector2(1, 1) },
                     sizeAttenuation: { value: 1 },
                     earthRadius: { value: 1 },
+                    sunPosition: { value: new Vector3(0, 0, 0) },
                 },
             ]),
             vertexShader: SatelliteTrailVertexShader,
@@ -90,6 +103,15 @@ export class SatelliteTrailMaterial extends ShaderMaterial {
                 },
                 set: function (value) {
                     this.uniforms.earthRadius.value = value;
+                },
+            },
+            sunPosition: {
+                enumerable: true,
+                get: function () {
+                    return this.uniforms.sunPosition.value;
+                },
+                set: function (value) {
+                    this.uniforms.sunPosition.value.copy(value);
                 },
             },
         });

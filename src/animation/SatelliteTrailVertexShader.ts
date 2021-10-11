@@ -3,7 +3,6 @@ const SatelliteTrailVertexShader = `
 #include <common>
 
 attribute vec3 previous;
-attribute vec3 sunPosition;
 attribute float side;
 attribute float width;
 
@@ -13,6 +12,7 @@ uniform float lineWidth;
 uniform float sizeAttenuation;
 uniform vec2 resolution;
 uniform float earthRadius;
+uniform vec3 sunPosition;
 
 varying vec4 vColor;
 

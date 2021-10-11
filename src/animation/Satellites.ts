@@ -22,7 +22,7 @@ import SceneComponent from './SceneComponent';
 import SatellitesData from '../SatellitesData';
 
 export default class Satellites extends SceneComponent {
-    private static NUM_TAIL_SEGMENTS = 40;
+    private static NUM_TAIL_SEGMENTS = 20;
     private static NUM_TAIL_TRIANGLES = Satellites.NUM_TAIL_SEGMENTS + 1;
     private static NUM_TAIL_VERTICES = Satellites.NUM_TAIL_SEGMENTS + 3;
 
@@ -69,8 +69,6 @@ export default class Satellites extends SceneComponent {
         // trailGeometry.instanceCount = SatellitesData.NUM_SATELLITES;
         trailGeometry.setAttribute('position', new BufferAttribute(new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES * 3), 3));
         trailGeometry.setAttribute('previous', new BufferAttribute(new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES * 3), 3));
-        // TODO: convert sun position into a uniform
-        trailGeometry.setAttribute('sunPosition', new BufferAttribute(new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES * 3), 3));
         const sideArray = new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES);
         trailGeometry.setAttribute('side', new BufferAttribute(sideArray, 1));
         for (let i = 0; i < numSatellites; i++) {
@@ -124,7 +122,6 @@ export default class Satellites extends SceneComponent {
         const translationArray = this.spheres.geometry.attributes.translation.array as Float32Array;
         const positionArray = this.trails.geometry.attributes.position.array as Float32Array;
         const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
-        const sunPositionArray = this.trails.geometry.attributes.sunPosition.array as Float32Array;
 
         const advanceTrail =
             this.trailTimestamps.length < Satellites.NUM_TAIL_TRIANGLES ||
@@ -140,13 +137,9 @@ export default class Satellites extends SceneComponent {
 
             // POSITIONS
             memcpy(positionArray, 3, positionArray, 0, positionArray.length - 3);
-
-            // SUN POSITION
-            memcpy(sunPositionArray, 3, sunPositionArray, 0, sunPositionArray.length - 3);
         }
 
-        const sunPosition = this.sun.getPosition();
-        const sunPositionVectorArray = new Float32Array([sunPosition.x, sunPosition.y, sunPosition.z]);
+        (this.trails.material as SatelliteTrailMaterial).sunPosition = this.sun.getPosition();
 
         // For each satellite, get an updated position and save it to the translation array and update the trail
         for (let i = 0; i < this.satellitePositionStates.length; i++) {
@@ -163,8 +156,6 @@ export default class Satellites extends SceneComponent {
             const positionVectorArray = new Float32Array([position.x, position.y, position.z]);
             positionArray.set(positionVectorArray, offset + l - 6);
             positionArray.set(positionVectorArray, offset + l - 3);
-            sunPositionArray.set(sunPositionVectorArray, offset + l - 6);
-            sunPositionArray.set(sunPositionVectorArray, offset + l - 3);
             // Technically, the first position also needs to be updated but since the width is 0, it doesn't actually make
             // a difference visually. Therefore, that step is cut out here.
         }
@@ -172,6 +163,5 @@ export default class Satellites extends SceneComponent {
 
         this.trails.geometry.attributes.position.needsUpdate = true;
         this.trails.geometry.attributes.previous.needsUpdate = true;
-        this.trails.geometry.attributes.sunPosition.needsUpdate = true;
     }
 }
