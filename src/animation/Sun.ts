@@ -13,7 +13,7 @@ import {
     TextureLoader,
     Vector3,
 } from 'three';
-import { kmToModelUnits, log } from '../utils';
+import { kmToModelUnits } from '../utils';
 import Earth from './Earth';
 import { GUIData } from './index';
 import TraceLine from './TraceLine';

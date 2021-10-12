@@ -1,17 +1,7 @@
 import SatelliteTrailVertexShader from './SatelliteTrailVertexShader';
 import SatelliteTrailFragmentShader from './SatelliteTrailFragmentShader';
-import {
-    AdditiveBlending,
-    Color,
-    DoubleSide,
-    ShaderMaterial,
-    ShaderMaterialParameters,
-    UniformsLib,
-    UniformsUtils,
-    Vector2,
-    Vector3
-} from 'three';
-import {NormalBlending} from "three/src/constants";
+import { Color, DoubleSide, ShaderMaterial, ShaderMaterialParameters, UniformsLib, UniformsUtils, Vector2, Vector3 } from 'three';
+import { NormalBlending } from 'three/src/constants';
 
 interface SatelliteTrailMaterialProperties extends ShaderMaterialParameters {
     lineWidth: number;

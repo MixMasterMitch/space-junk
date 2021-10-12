@@ -1,19 +1,6 @@
-export function memcpy(src: any, srcOffset: number, dst: any, dstOffset: number, length: number): any {
-    let i;
-
-    src = src.subarray || src.slice ? src : src.buffer;
-    dst = dst.subarray || dst.slice ? dst : dst.buffer;
-
-    src = srcOffset ? (src.subarray ? src.subarray(srcOffset, length && srcOffset + length) : src.slice(srcOffset, length && srcOffset + length)) : src;
-
-    if (dst.set) {
-        dst.set(src, dstOffset);
-    } else {
-        for (i = 0; i < src.length; i++) {
-            dst[i + dstOffset] = src[i];
-        }
-    }
-
+export function memcpy<T extends Float32Array>(src: T, srcOffset: number, dst: T, dstOffset: number, length: number): T {
+    const srcSubArray = srcOffset ? src.subarray(srcOffset, length && srcOffset + length) : src;
+    dst.set(srcSubArray, dstOffset);
     return dst;
 }
 

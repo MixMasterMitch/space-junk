@@ -1,6 +1,6 @@
 import { Vector3 } from 'three';
-import {kmPerSecondToModelUnits, kmToModelUnits, log} from './utils';
-import {Satellite} from "./SatellitesData";
+import { kmPerSecondToModelUnits, kmToModelUnits } from './utils';
+import { Satellite } from './SatellitesData';
 
 interface Position {
     x: number;

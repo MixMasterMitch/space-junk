@@ -1,4 +1,4 @@
-import {Color, ShaderLib, ShaderMaterial, ShaderMaterialParameters, UniformsUtils, Vector3} from 'three';
+import { Color, ShaderLib, ShaderMaterial, ShaderMaterialParameters, UniformsUtils } from 'three';
 import SatelliteSphereVertexShader from './SatelliteSphereVertexShader';
 import SatelliteSphereFragmentShader from './SatelliteSphereFragmentShader';
 

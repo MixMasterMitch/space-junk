@@ -1,6 +1,5 @@
 import SatellitePositionDataSet from './SatellitePositionDataSet';
 import { parse } from 'papaparse';
-import { log } from './utils';
 
 export type ObjectType = 'DEBRIS' | 'PAYLOAD' | 'ROCKET BODY' | 'TBA';
 export type Size = 'LARGE' | 'MEDIUM' | 'SMALL';
