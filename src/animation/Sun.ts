@@ -82,7 +82,7 @@ export default class Sun extends SceneComponent {
         this.primaryDirectionalLight.shadow.camera.far = Earth.GEOSTATIONARY * 1.5;
         scene.add(this.primaryDirectionalLight);
 
-        this.secondaryDirectionalLight = new DirectionalLight(0xffffff, 0.2);
+        this.secondaryDirectionalLight = new DirectionalLight(0xffffff, 0.05);
         this.secondaryDirectionalLight.position.set(0, 0, 0);
         this.secondaryDirectionalLight.castShadow = false;
         scene.add(this.secondaryDirectionalLight);

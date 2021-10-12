@@ -1,8 +1,14 @@
 // From https://github.com/mrdoob/three.js/blob/master/src/renderers/shaders/ShaderLib/meshphong_frag.glsl.js
 const SatelliteSphereVertexShader = `
 #define PHONG
+uniform float baseSize;
 attribute vec3 translation;
+attribute float size;
+attribute vec3 diffuse;
+attribute vec3 emissive;
 varying vec3 vViewPosition;
+varying vec3 vDiffuse;
+varying vec3 vEmissive;
 #include <common>
 #include <uv_pars_vertex>
 #include <uv2_pars_vertex>
@@ -26,9 +32,9 @@ void main() {
 	#include <skinnormal_vertex>
 	#include <defaultnormal_vertex>
 	#include <normal_vertex>
-	// Overwrite the "begin_vertex" chunk and apply the translation to the position.
+	// Overwrite the "begin_vertex" chunk and apply the translation and scaling to the position.
 	// #include <begin_vertex>
-	vec3 transformed = vec3( position + translation );
+	vec3 transformed = vec3( position * baseSize * size + translation );
 	#include <morphtarget_vertex>
 	#include <skinning_vertex>
 	#include <displacementmap_vertex>
@@ -40,6 +46,8 @@ void main() {
 	#include <envmap_vertex>
 	#include <shadowmap_vertex>
 	#include <fog_vertex>
+	vDiffuse = diffuse;
+	vEmissive = emissive;
 }
 `;
 export default SatelliteSphereVertexShader;

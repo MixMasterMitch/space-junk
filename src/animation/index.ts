@@ -13,16 +13,17 @@ import { getDayOfYear, log } from '../utils';
 import SatellitesData from '../SatellitesData';
 
 export interface GUIData {
-    autoRotate: boolean;
     showStats: boolean;
     showAxes: boolean;
     showShadowHelper: boolean;
     showTraceLines: boolean;
     showStars: boolean;
     recordFrames: boolean;
+    rotationSpeed: number;
     fov: number;
     speed: number; // Multiplier on real time
     tailLength: number; // In minutes
+    satelliteSize: number;
     pixelRatio: number;
 }
 
@@ -53,7 +54,7 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
 
     // Setup the controls
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.autoRotateSpeed = 0.1;
+    controls.autoRotate = true;
     controls.minDistance = Earth.RADIUS * 1.5;
     controls.maxDistance = Earth.RADIUS * 100;
     controls.update();
@@ -92,16 +93,17 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
     const saveLocalGUIData = (): void => {
         localStorage.setItem('gui', JSON.stringify(guiData));
     };
-    gui.add(guiData, 'autoRotate').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStats').onChange(saveLocalGUIData);
     gui.add(guiData, 'showAxes').onChange(saveLocalGUIData);
     gui.add(guiData, 'showShadowHelper').onChange(saveLocalGUIData);
     gui.add(guiData, 'showTraceLines').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStars').onChange(saveLocalGUIData);
     gui.add(guiData, 'recordFrames').onChange(saveLocalGUIData);
+    gui.add(guiData, 'rotationSpeed', 0, 1).onChange(saveLocalGUIData);
     gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
     gui.add(guiData, 'speed', 1, 100).onChange(saveLocalGUIData);
     gui.add(guiData, 'tailLength', 0, 20).onChange(saveLocalGUIData);
+    gui.add(guiData, 'satelliteSize', 0, 2).onChange(saveLocalGUIData);
     gui.add(guiData, 'pixelRatio', 0.5, 2).onChange(saveLocalGUIData);
 
     // Setup resize handler
@@ -155,7 +157,7 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
 
         camera.fov = guiData.fov;
         camera.updateProjectionMatrix();
-        controls.autoRotate = guiData.autoRotate;
+        controls.autoRotateSpeed = guiData.rotationSpeed;
         controls.update();
 
         stars.render(date, camera, guiData);
@@ -198,16 +200,17 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 const DEFAULT_GUI_DATA: GUIData = {
-    autoRotate: true,
     showStats: true,
     showAxes: false,
     showShadowHelper: false,
     showTraceLines: false,
     showStars: true,
     recordFrames: true,
+    rotationSpeed: 0.1,
     fov: 70,
     speed: 60,
     tailLength: 3,
+    satelliteSize: 1,
     pixelRatio: window.devicePixelRatio,
 };
 

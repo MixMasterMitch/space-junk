@@ -99,4 +99,50 @@ export default class SatellitePositionState {
         }
         return this.output;
     }
+
+    public get size(): number {
+        if (this.isISS) {
+            return SatellitePositionState.crossSectionToRadius(250); // 7_957
+        } else if (this.isHubble) {
+            return SatellitePositionState.crossSectionToRadius(55);
+        } else if (this.isGPS) {
+            return SatellitePositionState.crossSectionToRadius(12.5);
+        } else if (this.isStarlinkSatellite) {
+            return SatellitePositionState.crossSectionToRadius(5.12);
+        } else if (this.satellite.size === 'LARGE') {
+            return SatellitePositionState.crossSectionToRadius(SatellitePositionState.randomInRange(1, 25));
+        } else if (this.satellite.size === 'MEDIUM') {
+            return SatellitePositionState.crossSectionToRadius(SatellitePositionState.randomInRange(0.1, 1));
+        } else {
+            return SatellitePositionState.crossSectionToRadius(SatellitePositionState.randomInRange(0.03, 0.1));
+        }
+    }
+
+    private static crossSectionToRadius(mSquared: number): number {
+        return Math.sqrt(mSquared / Math.PI);
+    }
+
+    private static randomInRange(min: number, max: number): number {
+        return Math.random() * (max - min) + min;
+    }
+
+    public get type(): 'DEBRIS' | 'ROCKET BODY' | 'PAYLOAD' {
+        return this.satellite.objectType === 'TBA' ? 'DEBRIS' : this.satellite.objectType;
+    }
+
+    public get isISS(): boolean {
+        return this.satellite.catalogId === '25544';
+    }
+
+    public get isHubble(): boolean {
+        return this.satellite.catalogId === '20580';
+    }
+
+    public get isStarlinkSatellite(): boolean {
+        return this.satellite.objectName !== null && this.satellite.objectName.includes('STARLINK');
+    }
+
+    public get isGPS(): boolean {
+        return this.satellite.objectName !== null && this.satellite.objectName.includes('NAVSTAR') && this.satellite.objectType === 'PAYLOAD';
+    }
 }

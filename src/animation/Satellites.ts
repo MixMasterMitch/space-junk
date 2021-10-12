@@ -22,7 +22,7 @@ import SceneComponent from './SceneComponent';
 import SatellitesData from '../SatellitesData';
 
 export default class Satellites extends SceneComponent {
-    private static NUM_TAIL_SEGMENTS = 20;
+    private static NUM_TAIL_SEGMENTS = 60;
     private static NUM_TAIL_TRIANGLES = Satellites.NUM_TAIL_SEGMENTS + 1;
     private static NUM_TAIL_VERTICES = Satellites.NUM_TAIL_SEGMENTS + 3;
 
@@ -48,17 +48,61 @@ export default class Satellites extends SceneComponent {
             await satellitePositionState.initialize(scene, renderer);
         }
 
+        // Colors
+        // log(new Color(0x00c853).getHSL({ h: 0, s: 0, l: 0 }).h);
+        const redHue = 0.011; // red 0xf44336
+        const orangeHue = 0.071; // orange 0xff6d00
+        const yellowHue = 0.129; // yellow 0xffc602
+        const greenHue = 0.403; // green 0x00c853
+        const skyBlueHue = 0.559; // sky blue 0x049ef4
+        const blueHue = 0.642; // blue 0x3d5afe
+        const purpleHue = 0.727; // purple 0x3d5afe
+        const saturation = 1;
+        const lightness = 0.5;
+        const energy = 0.2;
+        const shininess = 16;
+
         // The satellite spheres geometry is stored as an InstancedBufferGeometry, meaning that all of the spheres are rendered as a single geometry,
         // with some properties (e.g. the vertices of the sphere shape) being shared across all instances (i.e. individual spheres) and other properties
         // (e.g. the translation of each sphere) are set per instance.
         // The translation math to shift the position of each vertex of each sphere is being done in the GPU to free up the CPU.
-        const sphereGeometry = new InstancedBufferGeometry().copy(new SphereBufferGeometry(Earth.RADIUS * 0.01, 12, 8));
+        const sphereGeometry = new InstancedBufferGeometry().copy(new SphereBufferGeometry(100 / 1000, 24, 16));
         sphereGeometry.instanceCount = numSatellites;
         sphereGeometry.setAttribute('translation', new InstancedBufferAttribute(new Float32Array(numSatellites * 3), 3));
+        const sizeArray = new Float32Array(numSatellites);
+        const diffuseArray = new Float32Array(numSatellites * 3);
+        const emissiveArray = new Float32Array(numSatellites * 3);
+        for (let i = 0; i < this.satellitePositionStates.length; i++) {
+            const satellitePositionState = this.satellitePositionStates[i];
+            sizeArray[i] = satellitePositionState.size;
+            let hue;
+            if (satellitePositionState.isISS) {
+                hue = skyBlueHue;
+            } else if (satellitePositionState.isHubble) {
+                hue = orangeHue;
+            } else if (satellitePositionState.isGPS) {
+                hue = greenHue;
+            } else if (satellitePositionState.isStarlinkSatellite) {
+                hue = purpleHue;
+            } else if (satellitePositionState.type === 'PAYLOAD') {
+                hue = yellowHue;
+            } else if (satellitePositionState.type === 'ROCKET BODY') {
+                hue = blueHue;
+            } else {
+                hue = redHue;
+            }
+            const diffuse = new Color().setHSL(hue, saturation, lightness * 1.2).multiplyScalar(1.0 - energy);
+            const emissive = new Color().setHSL(hue, saturation, lightness / 1.2).multiplyScalar(1.0 - energy);
+            diffuseArray.set([diffuse.r, diffuse.g, diffuse.b], i * 3);
+            emissiveArray.set([emissive.r, emissive.g, emissive.b], i * 3);
+        }
+        sphereGeometry.setAttribute('size', new InstancedBufferAttribute(sizeArray, 1));
+        sphereGeometry.setAttribute('diffuse', new InstancedBufferAttribute(diffuseArray, 3));
+        sphereGeometry.setAttribute('emissive', new InstancedBufferAttribute(emissiveArray, 3));
 
         const sphereMaterial = new SatelliteSphereMaterial({
-            diffuse: new Color(0xffffff),
-            emissive: new Color(0xffc602).multiplyScalar(0.5),
+            specular: new Color(0xffffff).multiplyScalar(energy),
+            shininess,
         });
         this.spheres = new Mesh(sphereGeometry, sphereMaterial);
         this.spheres.receiveShadow = true;
@@ -80,12 +124,13 @@ export default class Satellites extends SceneComponent {
         const widthArray = new Float32Array(numSatellites * Satellites.NUM_TAIL_VERTICES);
         trailGeometry.setAttribute('width', new BufferAttribute(widthArray, 1));
         for (let i = 0; i < numSatellites; i++) {
+            const size = this.satellitePositionStates[i].size;
             const offset = i * Satellites.NUM_TAIL_VERTICES;
             widthArray[offset] = 0;
             for (let j = 0; j < Satellites.NUM_TAIL_VERTICES - 2; j++) {
-                widthArray[offset + 1 + j] = j / (Satellites.NUM_TAIL_VERTICES - 3);
+                widthArray[offset + 1 + j] = (j / (Satellites.NUM_TAIL_VERTICES - 3)) * size;
             }
-            widthArray[offset + Satellites.NUM_TAIL_VERTICES - 1] = 1;
+            widthArray[offset + Satellites.NUM_TAIL_VERTICES - 1] = size;
         }
         const indexArray = new Uint32Array(numSatellites * Satellites.NUM_TAIL_TRIANGLES * 3);
         trailGeometry.setIndex(new BufferAttribute(indexArray, 1));
@@ -118,6 +163,8 @@ export default class Satellites extends SceneComponent {
         if (!this.spheres || !this.trails) {
             return;
         }
+
+        (this.spheres.material as SatelliteSphereMaterial).baseSize = guiData.satelliteSize;
 
         const translationArray = this.spheres.geometry.attributes.translation.array as Float32Array;
         const positionArray = this.trails.geometry.attributes.position.array as Float32Array;

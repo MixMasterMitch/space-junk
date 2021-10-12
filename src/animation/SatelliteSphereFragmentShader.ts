@@ -1,8 +1,8 @@
 // From https://github.com/mrdoob/three.js/blob/master/src/renderers/shaders/ShaderLib/meshphong_vert.glsl.js
 const SatelliteSphereFragmentShader = `
 #define PHONG
-uniform vec3 diffuse;
-uniform vec3 emissive;
+varying vec3 vDiffuse;
+varying vec3 vEmissive;
 uniform vec3 specular;
 uniform float shininess;
 uniform float opacity;
@@ -34,9 +34,9 @@ uniform float opacity;
 #include <clipping_planes_pars_fragment>
 void main() {
 	#include <clipping_planes_fragment>
-	vec4 diffuseColor = vec4( diffuse, opacity );
+	vec4 diffuseColor = vec4( vDiffuse, opacity );
 	ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
-	vec3 totalEmissiveRadiance = emissive;
+	vec3 totalEmissiveRadiance = vEmissive;
 	#include <logdepthbuf_fragment>
 	#include <map_fragment>
 	#include <color_fragment>
