@@ -6,15 +6,15 @@ const config: webpack.Configuration = {
         main: path.resolve(__dirname, 'src/index.ts'),
     },
     resolve: {
-        extensions: ['.ts', '.js'],
+        extensions: ['.tsx', '.ts', '.js'],
     },
     module: {
         rules: [
             {
-                test: /\.ts$/,
+                test: /\.tsx?$/,
                 loader: 'esbuild-loader',
                 options: {
-                    loader: 'ts',
+                    loader: 'tsx',
                     target: 'es2019',
                 },
             },

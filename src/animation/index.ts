@@ -11,8 +11,11 @@ import SceneComponent from './SceneComponent';
 import Satellites from './Satellites';
 import { getDayOfYear, log } from '../utils';
 import SatellitesData from '../SatellitesData';
+import {EventEmitter} from "tsee";
+import {UIEvents} from "../ui";
 
 export interface GUIData {
+    reset: boolean;
     showStats: boolean;
     showAxes: boolean;
     showShadowHelper: boolean;
@@ -27,7 +30,7 @@ export interface GUIData {
     pixelRatio: number;
 }
 
-export const startAnimation = async (satellitesData: SatellitesData): Promise<void> => {
+export const startAnimation = async (satellitesData: SatellitesData, uiEventBus: EventEmitter<UIEvents>): Promise<WebGLRenderer> => {
     // Initialize GUI data
     const guiData: GUIData = getLocalGUIData();
 
@@ -37,12 +40,14 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
 
     // Setup the camera
     const camera = new PerspectiveCamera(guiData.fov, window.innerWidth / window.innerHeight, 0.1, SOLAR_SYSTEM_RADIUS);
-    // const eyeVector = new Vector3(Earth.RADIUS * 1.9, Earth.RADIUS, 0);
-    // const eyeVector = new Vector3(0, 0, Earth.RADIUS * 1.9);
-    const eyeVector = new Vector3(0, Earth.RADIUS * 2, -Earth.RADIUS * 3);
-    camera.position.set(eyeVector.x, eyeVector.y, eyeVector.z);
-    camera.lookAt(new Vector3(0, 0, 0));
-    // camera.position.set(0, 0, 0);
+    // let cameraPosition = new Vector3(Earth.RADIUS * 1.9, Earth.RADIUS, 0);
+    // let cameraPosition = new Vector3(0, 0, Earth.RADIUS * 1.9);
+    let cameraPosition = new Vector3(0, Earth.RADIUS * 2, -Earth.RADIUS * 3);
+    const storedCameraPosition = vectorFromString(localStorage.getItem('cameraPosition'));
+    if (storedCameraPosition !== null && !guiData.reset) {
+        cameraPosition = storedCameraPosition;
+    }
+    camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
 
     // Setup the renderer
     const renderer = new WebGLRenderer({ antialias: true });
@@ -50,13 +55,19 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
     renderer.setPixelRatio(guiData.pixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = PCFSoftShadowMap;
-    renderer.domElement.className = 'fade-in animation-delayed';
+    renderer.domElement.className = 'fade-in animation-delayed hide-cursor';
 
     // Setup the controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.autoRotate = true;
     controls.minDistance = Earth.RADIUS * 1.5;
     controls.maxDistance = Earth.RADIUS * 100;
+    let cameraTarget = new Vector3(0, 0, 0);
+    const storedCameraTarget = vectorFromString(localStorage.getItem('cameraTarget'));
+    if (storedCameraTarget !== null && !guiData.reset) {
+        cameraTarget = storedCameraTarget;
+    }
+    controls.target = cameraTarget;
     controls.update();
 
     // Setup the stars
@@ -85,7 +96,6 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
     // Initialize FPS meter
     const stats = new Stats();
     stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
-    const panel = stats.addPanel(new Panel('Sats', '#0f0', '#020'));
     document.body.appendChild(stats.dom);
 
     // Setup the GUI
@@ -93,6 +103,7 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
     const saveLocalGUIData = (): void => {
         localStorage.setItem('gui', JSON.stringify(guiData));
     };
+    gui.add(guiData, 'reset').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStats').onChange(saveLocalGUIData);
     gui.add(guiData, 'showAxes').onChange(saveLocalGUIData);
     gui.add(guiData, 'showShadowHelper').onChange(saveLocalGUIData);
@@ -130,6 +141,10 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
     // let date = new Date('2021-03-20T09:36-00:00');
     // let date = new Date('1970-09-22T17:20-00:00');
     // let date = new Date();
+    const storedDate = localStorage.getItem('date');
+    if (storedDate !== null && !guiData.reset) {
+        date = new Date(JSON.parse(storedDate));
+    }
     await satellitesData.loadTLEs(date);
     let lastFrameTimestamp: number;
     let frameNumber = 0;
@@ -149,11 +164,11 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
         const frameTimeDiff = recording ? 16 : frameTimestamp - lastFrameTimestamp;
         lastFrameTimestamp = frameTimestamp;
         date = new Date(date.getTime() + frameTimeDiff * guiData.speed);
+        uiEventBus.emit('dateTick', date);
         // log(date);
 
         stats.begin();
         stats.dom.hidden = !guiData.showStats;
-        panel.update(getDayOfYear(date), 366);
 
         camera.fov = guiData.fov;
         camera.updateProjectionMatrix();
@@ -187,6 +202,14 @@ export const startAnimation = async (satellitesData: SatellitesData): Promise<vo
         satellitesData.purge(date);
         satellitesData.loadTLEs(date);
     }, 50);
+
+    window.addEventListener('unload', function () {
+        localStorage.setItem('cameraPosition', vectorToString(camera.position));
+        localStorage.setItem('cameraTarget', vectorToString(controls.target));
+        localStorage.setItem('date', JSON.stringify(date.getTime()));
+    });
+
+    return renderer;
 };
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -200,6 +223,7 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 const DEFAULT_GUI_DATA: GUIData = {
+    reset: false,
     showStats: true,
     showAxes: false,
     showShadowHelper: false,
@@ -222,3 +246,15 @@ const getLocalGUIData = (): GUIData => {
     }
     return { ...DEFAULT_GUI_DATA, ...localData };
 };
+
+function vectorToString(v: Vector3): string {
+    return JSON.stringify({ x: v.x, y: v.y, z: v.z });
+}
+
+function vectorFromString(s: string | null): Vector3 | null {
+    if (s === null) {
+        return null;
+    }
+    const parsed = JSON.parse(s);
+    return new Vector3(parsed.x, parsed.y, parsed.z);
+}

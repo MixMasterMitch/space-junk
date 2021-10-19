@@ -22,7 +22,7 @@ import SceneComponent from './SceneComponent';
 import SatellitesData from '../SatellitesData';
 
 export default class Satellites extends SceneComponent {
-    private static NUM_TAIL_SEGMENTS = 60;
+    private static NUM_TAIL_SEGMENTS = 20;
     private static NUM_TAIL_TRIANGLES = Satellites.NUM_TAIL_SEGMENTS + 1;
     private static NUM_TAIL_VERTICES = Satellites.NUM_TAIL_SEGMENTS + 3;
 
@@ -66,7 +66,7 @@ export default class Satellites extends SceneComponent {
         // with some properties (e.g. the vertices of the sphere shape) being shared across all instances (i.e. individual spheres) and other properties
         // (e.g. the translation of each sphere) are set per instance.
         // The translation math to shift the position of each vertex of each sphere is being done in the GPU to free up the CPU.
-        const sphereGeometry = new InstancedBufferGeometry().copy(new SphereBufferGeometry(100 / 1000, 24, 16));
+        const sphereGeometry = new InstancedBufferGeometry().copy(new SphereBufferGeometry(100 / 1000, 12, 8));
         sphereGeometry.instanceCount = numSatellites;
         sphereGeometry.setAttribute('translation', new InstancedBufferAttribute(new Float32Array(numSatellites * 3), 3));
         const sizeArray = new Float32Array(numSatellites);
