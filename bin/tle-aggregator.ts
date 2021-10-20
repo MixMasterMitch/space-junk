@@ -4,6 +4,7 @@ import es, { MapStream } from 'event-stream';
 import { Readable } from 'stream';
 import Immediate = NodeJS.Immediate;
 import { getDayStringFromDate, getNextEndDate } from '../src/SatellitesData';
+import { DateTime, Duration } from 'luxon';
 
 interface Satellite {
     catalogId: string;
@@ -65,7 +66,7 @@ interface RawRecord {
     TLE_LINE2: string;
 }
 
-const TLE_GAP = 2 * 7 * 24 * 60 * 60 * 1000; // Two weeks
+const TLE_GAP_MS = Duration.fromObject({ weeks: 2 }).toMillis();
 
 const run = async (): Promise<void> => {
     console.log('Listing files');
@@ -196,18 +197,18 @@ const run = async (): Promise<void> => {
                         satellite.decayDate = decayDate;
                     }
                 }
-                if (epoch < currentTLEFileStart.getTime()) {
+                if (epoch < currentTLEFileStart.toMillis()) {
                     console.error('Epochs in wrong order');
                     process.exit(1);
                 }
-                if (epoch >= currentTLEFileEnd.getTime()) {
+                if (epoch >= currentTLEFileEnd.toMillis()) {
                     // Next file
                     tleReadStream.pause();
                     await flushTles();
                     clearImmediate(immediate);
                     immediate = setImmediate(() => tleReadStream.resume());
                     tleWriteStream.end();
-                    console.log(`Found ${new Date(epoch)} in ${file}`);
+                    console.log(`Found ${DateTime.fromMillis(epoch)} in ${file}`);
                     console.log(`Closed output for ${getDayStringFromDate(currentTLEFileStart)}, starting on ${getDayStringFromDate(currentTLEFileEnd)}`);
                     currentTLEFileStart = currentTLEFileEnd;
                     currentTLEFileEnd = getNextEndDate(currentTLEFileStart);
@@ -227,7 +228,7 @@ const run = async (): Promise<void> => {
                         parts[38], // line1
                         parts[39], // line2
                     ].join(',') + '\n';
-                if (candidateEpoch !== undefined && nextEpoch - prevEpoch > TLE_GAP) {
+                if (candidateEpoch !== undefined && nextEpoch - prevEpoch > TLE_GAP_MS) {
                     await writeWithBackpressure(candidateTLE, tleReadStream);
                     prevEpochs[catalogId] = candidateEpoch;
                 } else {

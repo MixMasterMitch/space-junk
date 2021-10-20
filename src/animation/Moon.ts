@@ -4,13 +4,14 @@ import { GUIData } from './index';
 import { getJ200PeriodPercentage, kmToModelUnits, percentageToRadians } from '../utils';
 import TraceLine from './TraceLine';
 import { moonPosition } from '../orb';
+import { DateTime, Duration } from 'luxon';
 
 export default class Moon extends SceneComponent {
     private static RADIUS_KM = 1_737;
     private static RADIUS = kmToModelUnits(Moon.RADIUS_KM);
     private static DISTANCE_FROM_EARTH_KM = 384_400;
     private static DISTANCE_FROM_EARTH = kmToModelUnits(Moon.DISTANCE_FROM_EARTH_KM);
-    private static SIDERIAL_PERIOD_MS = 27.322 * 24 * 60 * 60 * 1000;
+    private static SIDERIAL_PERIOD = Duration.fromObject({ days: 27.322 });
 
     // Angle between rotational axis and orbital axis.
     // See: https://en.wikipedia.org/wiki/Axial_tilt
@@ -58,12 +59,12 @@ export default class Moon extends SceneComponent {
         await this.traceLine.initialize(scene, renderer);
     }
 
-    public render(date: Date, camera: Camera, guiData: GUIData): void {
+    public render(dateTime: DateTime, camera: Camera, guiData: GUIData): void {
         if (!this.sphere || !this.axesHelper || !this.traceLine) {
             return;
         }
-        moonPosition(date, this.sphere.position);
-        const rotation = percentageToRadians(this.getJ200SiderealPeriodPercentage(date)) + Moon.TEXTURE_ROTATION_RAD;
+        moonPosition(dateTime, this.sphere.position);
+        const rotation = percentageToRadians(this.getJ200SiderealPeriodPercentage(dateTime)) + Moon.TEXTURE_ROTATION_RAD;
         const rotationQuaternion = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0).normalize(), rotation);
         const axialTiltQuaternion = new Quaternion().setFromAxisAngle(new Vector3(0, 0, -1).normalize(), Moon.AXIAL_TILT_RAD + Moon.INCLINATION_RAD);
         this.sphere.rotation.setFromQuaternion(axialTiltQuaternion.multiply(rotationQuaternion));
@@ -75,7 +76,7 @@ export default class Moon extends SceneComponent {
     /**
      * Determines what percentage of the way around the moon's rotation it is at a given date. Based on the J200 epoch.
      */
-    private getJ200SiderealPeriodPercentage = (date: Date): number => {
-        return getJ200PeriodPercentage(date, Moon.SIDERIAL_PERIOD_MS);
+    private getJ200SiderealPeriodPercentage = (dateTime: DateTime): number => {
+        return getJ200PeriodPercentage(dateTime, Moon.SIDERIAL_PERIOD);
     };
 }

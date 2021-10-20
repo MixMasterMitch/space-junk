@@ -1,27 +1,18 @@
+import { DateTime, Duration, Settings } from 'luxon';
+
+Settings.defaultZone = 'UTC';
+
 import fs from 'fs';
 import zlib from 'zlib';
 
 import credentials from '../spaceTrackCreds.json';
 
 import SpaceTrack from '../src/SpaceTrack';
-
-const getDayStringFromDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
-};
-
-const getDateFromDayString = (dayString: string): Date => {
-    const parts = dayString.split('-');
-    return new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0));
-};
-
-const incrementOneDay = (date: Date): Date => {
-    return new Date(date.getTime() + 24 * 60 * 60 * 1000);
-};
+import { getDayStringFromDate } from '../src/SatellitesData';
 
 const incrementDayStringOneDay = (dateString: string): string => {
-    const inputDate = getDateFromDayString(dateString);
-    const outputDate = incrementOneDay(inputDate);
-    return getDayStringFromDate(outputDate);
+    const inputDateTime = DateTime.fromISO(dateString);
+    return getDayStringFromDate(inputDateTime.plus(Duration.fromObject({ days: 1 })));
 };
 
 const findNextDateToPull = (startDayString: string, endDayString: string, existingFiles: string[]): string => {
@@ -33,7 +24,7 @@ const findNextDateToPull = (startDayString: string, endDayString: string, existi
 };
 
 const START_DATE = '1959-04-24'; // Shortly after launch of Vanguard 2. Sputnik 1 was launched '1957-12-04' but I do not have good data for satellites before Vanguard 2.
-const END_DATE = getDayStringFromDate(new Date());
+const END_DATE = getDayStringFromDate(DateTime.now());
 
 const spaceTrack = new SpaceTrack(credentials);
 
@@ -69,11 +60,6 @@ const run = async (): Promise<void> => {
         }
     };
     await pullNextFile();
-
-    // await new SpaceTrack(credentials).getTLEsForDateRange('2020-01-01', '2020-01-08');
-    // console.log(await new SpaceTrack(credentials).getTLEsForDateRange('1958-02-01', '1959-09-26'));
-
-    // await new SpaceTrack(credentials).getTLEsForDateRange(curDayString, incrementDayStringOneDay(curDayString));
 };
 
 run().then().catch(console.error);

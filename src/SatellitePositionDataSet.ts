@@ -36,16 +36,15 @@ export default class SatellitePositionDataSet {
         }
     }
 
-    public getClosestSatelliteData(epoch: Date): SatelliteData | null {
+    public getClosestSatelliteData(epoch: number): SatelliteData | null {
         if (this.data.length === 0) {
             return null;
         }
-        const epochTime = epoch.getTime();
-        const insertionIndex = this.getInsertionIndex(epochTime);
+        const insertionIndex = this.getInsertionIndex(epoch);
 
         // Get valid candidate after or equal to the candidate
         let afterCandidate: DataInstance | null = insertionIndex < this.data.length ? this.data[insertionIndex] : null;
-        if (afterCandidate !== null && epochTime < afterCandidate.epoch - SatellitesData.TLE_ACCURACY) {
+        if (afterCandidate !== null && epoch < afterCandidate.epoch - SatellitesData.TLE_ACCURACY.toMillis()) {
             afterCandidate = null;
         }
 
@@ -53,15 +52,15 @@ export default class SatellitePositionDataSet {
         let beforeCandidate = null;
         if (insertionIndex > 0) {
             beforeCandidate = this.data[insertionIndex - 1];
-            if (epochTime > beforeCandidate.epoch + SatellitesData.TLE_ACCURACY) {
+            if (epoch > beforeCandidate.epoch + SatellitesData.TLE_ACCURACY.toMillis()) {
                 beforeCandidate = null;
             }
         }
 
         // Determine the best candidate
         if (beforeCandidate !== null && afterCandidate !== null) {
-            const beforeDifference = Math.abs(epochTime - beforeCandidate.epoch);
-            const afterDifference = Math.abs(epochTime - afterCandidate.epoch);
+            const beforeDifference = Math.abs(epoch - beforeCandidate.epoch);
+            const afterDifference = Math.abs(epoch - afterCandidate.epoch);
             if (beforeDifference < afterDifference) {
                 return beforeCandidate.data;
             } else {

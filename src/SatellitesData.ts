@@ -1,5 +1,6 @@
 import SatellitePositionDataSet from './SatellitePositionDataSet';
 import { parse } from 'papaparse';
+import { DateTime, Duration } from 'luxon';
 
 export type ObjectType = 'DEBRIS' | 'PAYLOAD' | 'ROCKET BODY' | 'TBA';
 export type Size = 'LARGE' | 'MEDIUM' | 'SMALL';
@@ -10,101 +11,61 @@ export interface Satellite {
     objectType: ObjectType;
     size: Size;
     countryCode: string | null;
-    launchDate: Date | null;
+    launchDate: DateTime | null;
     launchSite: string | null;
-    decayDate: Date | null;
+    decayDate: DateTime | null;
     positionDataSet: SatellitePositionDataSet;
 }
 
 interface File {
     name: string;
-    startTime: Date;
-    endTime: Date;
+    startDateTime: DateTime;
+    endDateTime: DateTime;
 }
 
-export function getDayStringFromDate(date: Date): string {
-    return date.toISOString().split('T')[0];
+export function getDayStringFromDate(dateTime: DateTime): string {
+    return dateTime.toISODate();
 }
 
-export function getDateFromDayString(dayString: string): Date {
+export function getDateFromDayString(dayString: string): DateTime {
     const parts = dayString.split('-');
-    return new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0));
+    return DateTime.utc(parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]));
 }
 
-function incrementOneYear(date: Date): Date {
-    return new Date(
-        Date.UTC(
-            date.getUTCFullYear() + 1,
-            date.getUTCMonth(),
-            date.getUTCDate(),
-            date.getUTCHours(),
-            date.getUTCMinutes(),
-            date.getUTCSeconds(),
-            date.getUTCMilliseconds(),
-        ),
-    );
+function incrementOneYear(dateTime: DateTime): DateTime {
+    return dateTime.plus(Duration.fromObject({ years: 1 }));
 }
 
-function incrementThreeMonths(date: Date): Date {
-    return new Date(
-        Date.UTC(
-            date.getUTCFullYear(),
-            date.getUTCMonth() + 3,
-            date.getUTCDate(),
-            date.getUTCHours(),
-            date.getUTCMinutes(),
-            date.getUTCSeconds(),
-            date.getUTCMilliseconds(),
-        ),
-    );
+function incrementThreeMonths(dateTime: DateTime): DateTime {
+    return dateTime.plus(Duration.fromObject({ months: 3 }));
 }
 
-function incrementOneMonth(date: Date): Date {
-    return new Date(
-        Date.UTC(
-            date.getUTCFullYear(),
-            date.getUTCMonth() + 1,
-            date.getUTCDate(),
-            date.getUTCHours(),
-            date.getUTCMinutes(),
-            date.getUTCSeconds(),
-            date.getUTCMilliseconds(),
-        ),
-    );
+function incrementOneMonth(dateTime: DateTime): DateTime {
+    return dateTime.plus(Duration.fromObject({ months: 1 }));
 }
 
-function increment15Days(date: Date): Date {
-    return new Date(
-        Date.UTC(
-            date.getUTCFullYear(),
-            date.getUTCMonth(),
-            date.getUTCDate() + 15,
-            date.getUTCHours(),
-            date.getUTCMinutes(),
-            date.getUTCSeconds(),
-            date.getUTCMilliseconds(),
-        ),
-    );
+function increment15Days(dateTime: DateTime): DateTime {
+    return dateTime.plus(Duration.fromObject({ days: 15 }));
 }
 
-export function getNextEndDate(startDate?: Date): Date {
-    if (startDate === undefined) {
+export function getNextEndDate(startDateTime?: DateTime): DateTime {
+    if (startDateTime === undefined) {
         return getDateFromDayString('1959-01-01');
-    } else if (startDate.getTime() < getDateFromDayString('1970-01-01').getTime()) {
-        return incrementOneYear(startDate);
-    } else if (startDate.getTime() < getDateFromDayString('1975-01-01').getTime()) {
-        return incrementThreeMonths(startDate);
-    } else if (startDate.getTime() < getDateFromDayString('1990-01-01').getTime()) {
-        return incrementOneMonth(startDate);
+    } else if (startDateTime < getDateFromDayString('1970-01-01')) {
+        return incrementOneYear(startDateTime);
+    } else if (startDateTime < getDateFromDayString('1975-01-01')) {
+        return incrementThreeMonths(startDateTime);
+    } else if (startDateTime < getDateFromDayString('1990-01-01')) {
+        return incrementOneMonth(startDateTime);
     } else {
-        return increment15Days(startDate);
+        return increment15Days(startDateTime);
     }
 }
 
 export default class SatellitesData implements Iterable<Satellite> {
-    public static TLE_ACCURACY = 14 * 24 * 60 * 60 * 1000; // 2 weeks
-    private static TLE_LOOKAHEAD_BUFFER = 30 * 24 * 60 * 60 * 1000; // 30 days
-    private static TLE_PURGE_BUFFER = 366 * 24 * 60 * 60 * 1000; // 1 year
+    public static TLE_ACCURACY = Duration.fromObject({ weeks: 2 });
+    private static TLE_LOOKAHEAD_BUFFER = Duration.fromObject({ days: 30 });
+    private static TLE_PURGE_BUFFER = Duration.fromObject({ years: 1 });
     private static FILES: File[] = [];
     private static PURGE_RATE = 1000;
     private loadedFiles: File[] = [];
@@ -114,15 +75,15 @@ export default class SatellitesData implements Iterable<Satellite> {
 
     private constructor() {
         if (SatellitesData.FILES.length === 0) {
-            let date = getNextEndDate();
-            while (date.getTime() <= getDateFromDayString('2021-09-30').getTime()) {
-                const nextDate = getNextEndDate(date);
+            let dateTime = getNextEndDate();
+            while (dateTime <= getDateFromDayString('2021-09-30')) {
+                const nextDate = getNextEndDate(dateTime);
                 SatellitesData.FILES.push({
-                    name: getDayStringFromDate(date),
-                    startTime: date,
-                    endTime: nextDate,
+                    name: getDayStringFromDate(dateTime),
+                    startDateTime: dateTime,
+                    endDateTime: nextDate,
                 });
-                date = nextDate;
+                dateTime = nextDate;
             }
         }
     }
@@ -184,10 +145,9 @@ export default class SatellitesData implements Iterable<Satellite> {
         return this.catalogIds.length;
     }
 
-    public async loadTLEs(epoch: Date): Promise<void> {
-        const epochTime = epoch.getTime();
-        const startTime = epochTime;
-        const endTime = epochTime + SatellitesData.TLE_LOOKAHEAD_BUFFER;
+    public async loadTLEs(epoch: DateTime): Promise<void> {
+        const startTime = epoch;
+        const endTime = epoch.plus(SatellitesData.TLE_LOOKAHEAD_BUFFER);
 
         const startIndex = this.getMatchingFileIndex(startTime);
         const endIndex = this.getMatchingFileIndex(endTime);
@@ -201,15 +161,15 @@ export default class SatellitesData implements Iterable<Satellite> {
         }
     }
 
-    private getMatchingFileIndex(epoch: number, start = 0, end = SatellitesData.FILES.length): number {
+    private getMatchingFileIndex(epoch: DateTime, start = 0, end = SatellitesData.FILES.length): number {
         if (end <= start) {
             return start;
         }
         const mid = Math.floor((start + end) / 2);
         const midValue = SatellitesData.FILES[mid];
-        if (epoch < midValue.startTime.getTime()) {
+        if (epoch < midValue.startDateTime) {
             return this.getMatchingFileIndex(epoch, start, mid - 1);
-        } else if (epoch > midValue.endTime.getTime()) {
+        } else if (epoch > midValue.endDateTime) {
             return this.getMatchingFileIndex(epoch, mid + 1, end);
         } else {
             return mid;
@@ -243,21 +203,20 @@ export default class SatellitesData implements Iterable<Satellite> {
         });
     }
 
-    public purge(epoch: Date): void {
-        const epochTime = epoch.getTime();
-        const startTime = epochTime - SatellitesData.TLE_ACCURACY;
-        const endTime = epochTime + SatellitesData.TLE_PURGE_BUFFER + SatellitesData.TLE_ACCURACY;
+    public purge(epoch: DateTime): void {
+        const startTime = epoch.minus(SatellitesData.TLE_ACCURACY);
+        const endTime = epoch.plus(SatellitesData.TLE_PURGE_BUFFER).plus(SatellitesData.TLE_ACCURACY);
 
         // Purge loaded files
         this.loadedFiles = this.loadedFiles.filter((loadedFile) => {
-            return startTime <= loadedFile.endTime.getTime() && endTime >= loadedFile.startTime.getTime();
+            return startTime <= loadedFile.endDateTime && endTime >= loadedFile.startDateTime;
         });
 
         // Purge position data
         this.purgeNumber = (this.purgeNumber + 1) % SatellitesData.PURGE_RATE;
         for (let i = this.purgeNumber; i < this.length; i += SatellitesData.PURGE_RATE) {
             const satellite = this.getSatellite(this.catalogIds[i]);
-            satellite.positionDataSet.purge(startTime, endTime);
+            satellite.positionDataSet.purge(startTime.toMillis(), endTime.toMillis());
         }
     }
 

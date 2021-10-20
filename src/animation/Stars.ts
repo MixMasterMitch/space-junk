@@ -2,6 +2,7 @@ import SceneComponent from './SceneComponent';
 import { BackSide, BoxGeometry, Camera, Color, MathUtils, Mesh, MeshBasicMaterial, Renderer, Scene, TextureLoader } from 'three';
 import { SOLAR_SYSTEM_RADIUS } from '../constants';
 import { GUIData } from './index';
+import { DateTime } from 'luxon';
 
 export default class Stars extends SceneComponent {
     // https://en.wikipedia.org/wiki/Galactic_plane
@@ -44,7 +45,7 @@ export default class Stars extends SceneComponent {
         scene.background = new Color('#0e151e');
     }
 
-    render(date: Date, camera: Camera, guiData: GUIData): void {
+    render(dateTime: DateTime, camera: Camera, guiData: GUIData): void {
         if (!this.mesh) {
             return;
         }

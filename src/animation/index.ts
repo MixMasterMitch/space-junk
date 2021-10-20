@@ -6,15 +6,17 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Stars from './Stars';
 import dat from 'dat.gui';
 import Moon from './Moon';
-import Stats, { Panel } from 'stats.js';
+import Stats from 'stats.js';
 import SceneComponent from './SceneComponent';
 import Satellites from './Satellites';
-import { getDayOfYear, log } from '../utils';
+import { log } from '../utils';
 import SatellitesData from '../SatellitesData';
-import {EventEmitter} from "tsee";
-import {UIEvents} from "../ui";
+import { EventEmitter } from 'tsee';
+import { UIEvents } from '../ui';
+import { DateTime, Duration } from 'luxon';
 
 export interface GUIData {
+    pause: boolean;
     reset: boolean;
     showStats: boolean;
     showAxes: boolean;
@@ -103,6 +105,7 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     const saveLocalGUIData = (): void => {
         localStorage.setItem('gui', JSON.stringify(guiData));
     };
+    gui.add(guiData, 'pause').onChange(saveLocalGUIData);
     gui.add(guiData, 'reset').onChange(saveLocalGUIData);
     gui.add(guiData, 'showStats').onChange(saveLocalGUIData);
     gui.add(guiData, 'showAxes').onChange(saveLocalGUIData);
@@ -135,23 +138,24 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     };
     window.addEventListener('resize', updateRendererSize, false);
 
-    // let date = J2000_EPOCH;
-    let date = new Date('2021-09-02T19:46-07:00');
-    // let date = new Date('2021-09-22T17:21-00:00');
-    // let date = new Date('2021-03-20T09:36-00:00');
-    // let date = new Date('1970-09-22T17:20-00:00');
-    // let date = new Date();
+    // let dateTime = J2000_EPOCH;
+    let dateTime = DateTime.fromISO('2021-09-02T19:46-07:00');
+    // let dateTime = DateTime.now();
     const storedDate = localStorage.getItem('date');
     if (storedDate !== null && !guiData.reset) {
-        date = new Date(JSON.parse(storedDate));
+        dateTime = DateTime.fromMillis(JSON.parse(storedDate));
     }
-    await satellitesData.loadTLEs(date);
+    await satellitesData.loadTLEs(dateTime);
     let lastFrameTimestamp: number;
     let frameNumber = 0;
     const animate = async (frameTimestamp: number) => {
-        frameNumber++;
         requestAnimationFrame(animate);
 
+        if (guiData.pause) {
+            return;
+        }
+
+        frameNumber++;
         if (frameNumber <= 2) {
             lastFrameTimestamp = frameTimestamp;
         }
@@ -163,9 +167,8 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
 
         const frameTimeDiff = recording ? 16 : frameTimestamp - lastFrameTimestamp;
         lastFrameTimestamp = frameTimestamp;
-        date = new Date(date.getTime() + frameTimeDiff * guiData.speed);
-        uiEventBus.emit('dateTick', date);
-        // log(date);
+        dateTime = dateTime.plus(Duration.fromMillis(frameTimeDiff * guiData.speed));
+        // uiEventBus.emit('dateTick', dateTime);
 
         stats.begin();
         stats.dom.hidden = !guiData.showStats;
@@ -175,11 +178,11 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
         controls.autoRotateSpeed = guiData.rotationSpeed;
         controls.update();
 
-        stars.render(date, camera, guiData);
-        sun.render(date, camera, guiData);
-        earth.render(date, camera, guiData);
-        moon.render(date, camera, guiData);
-        satellites.render(date, camera, guiData);
+        stars.render(dateTime, camera, guiData);
+        sun.render(dateTime, camera, guiData);
+        earth.render(dateTime, camera, guiData);
+        moon.render(dateTime, camera, guiData);
+        satellites.render(dateTime, camera, guiData);
 
         renderer.render(scene, camera);
         if (recording) {
@@ -199,14 +202,14 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     requestAnimationFrame(animate);
 
     setInterval(() => {
-        satellitesData.purge(date);
-        satellitesData.loadTLEs(date);
+        satellitesData.purge(dateTime);
+        satellitesData.loadTLEs(dateTime);
     }, 50);
 
     window.addEventListener('unload', function () {
         localStorage.setItem('cameraPosition', vectorToString(camera.position));
         localStorage.setItem('cameraTarget', vectorToString(controls.target));
-        localStorage.setItem('date', JSON.stringify(date.getTime()));
+        localStorage.setItem('date', JSON.stringify(dateTime.toMillis()));
     });
 
     return renderer;
@@ -223,6 +226,7 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 const DEFAULT_GUI_DATA: GUIData = {
+    pause: false,
     reset: false,
     showStats: true,
     showAxes: false,

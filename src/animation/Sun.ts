@@ -19,6 +19,7 @@ import { GUIData } from './index';
 import TraceLine from './TraceLine';
 import { sunPosition as getSunPosition } from '../orb';
 import { Lensflare, LensflareElement } from 'three/examples/jsm/objects/Lensflare';
+import { DateTime } from 'luxon';
 
 export default class Sun extends SceneComponent {
     private static RADIUS_KM = 696_340;
@@ -97,7 +98,7 @@ export default class Sun extends SceneComponent {
         await this.traceLine.initialize(scene, renderer);
     }
 
-    public render(date: Date, camera: Camera, guiData: GUIData): void {
+    public render(dateTime: DateTime, camera: Camera, guiData: GUIData): void {
         if (
             !this.sphere ||
             !this.lensflare ||
@@ -110,7 +111,7 @@ export default class Sun extends SceneComponent {
             return;
         }
 
-        getSunPosition(date, this.sphere.position);
+        getSunPosition(dateTime, this.sphere.position);
         this.sphere.position.copy(this.sphere.position);
         this.lensflare.position.copy(this.sphere.position).multiplyScalar(0.9); // Make sure the lensflare is not blocked by the sun sphere
         this.primaryDirectionalLight.position.copy(this.sphere.position);

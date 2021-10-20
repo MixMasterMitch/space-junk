@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import { kmPerSecondToModelUnits, kmToModelUnits } from './utils';
 import { Satellite } from './SatellitesData';
+import { DateTime } from 'luxon';
 
 interface Position {
     x: number;
@@ -64,13 +65,14 @@ const moon = new Orb.Moon();
 
 /**
  * @param body Which body (sun, moon, satellite, etc.) to get a position of.
- * @param date The point in time to get the body's position at.
+ * @param dateTime The point in time to get the body's position at.
  * @param eclipticToEquatorial Some bodies return their position in ecliptic coordinates. Setting this flag will flip back to equatorial coordinates.
  * @param outputPosition Vector to put the output position into. Using this saves an object creation.
  * @param outputVelocity Optional vector to put the output velocity into. Using this saves an object creation.
  */
-function bodyPosition(body: Body, date: Date, eclipticToEquatorial: boolean, outputPosition: Vector3, outputVelocity?: Vector3): void {
-    const xyz = eclipticToEquatorial ? Orb.EclipticToEquatorial({ date: date, ecliptic: body.xyz(date) }) : body.xyz(date);
+function bodyPosition(body: Body, dateTime: DateTime | number, eclipticToEquatorial: boolean, outputPosition: Vector3, outputVelocity?: Vector3): void {
+    const date = typeof dateTime === 'number' ? new Date(dateTime) : dateTime.toJSDate();
+    const xyz = eclipticToEquatorial ? Orb.EclipticToEquatorial({ date, ecliptic: body.xyz(date) }) : body.xyz(date);
     // Orb library returns a position in km and uses a different coordinate orientation.
     outputPosition.set(kmToModelUnits(-xyz.y), kmToModelUnits(xyz.z), kmToModelUnits(-xyz.x));
     if (outputVelocity !== undefined && xyz.xdot !== undefined && xyz.ydot !== undefined && xyz.zdot !== undefined) {
@@ -78,12 +80,12 @@ function bodyPosition(body: Body, date: Date, eclipticToEquatorial: boolean, out
     }
 }
 
-export function sunPosition(date: Date, outputPosition: Vector3, outputVelocity?: Vector3): void {
-    return bodyPosition(sun, date, false, outputPosition, outputVelocity);
+export function sunPosition(dateTime: DateTime | number, outputPosition: Vector3, outputVelocity?: Vector3): void {
+    return bodyPosition(sun, dateTime, false, outputPosition, outputVelocity);
 }
 
-export function moonPosition(date: Date, outputPosition: Vector3, outputVelocity?: Vector3): void {
-    return bodyPosition(moon, date, true, outputPosition, outputVelocity);
+export function moonPosition(dateTime: DateTime | number, outputPosition: Vector3, outputVelocity?: Vector3): void {
+    return bodyPosition(moon, dateTime, true, outputPosition, outputVelocity);
 }
 
 export function initializeSatellite(tle: TLE): SatelliteData {
@@ -94,8 +96,8 @@ export function initializeSatellite(tle: TLE): SatelliteData {
     });
 }
 
-export function satellitePosition(date: Date, satellite: Satellite, outputPosition: Vector3, outputVelocity?: Vector3): void {
-    const satelliteData = satellite.positionDataSet.getClosestSatelliteData(date);
+export function satellitePosition(dateTime: number, satellite: Satellite, outputPosition: Vector3, outputVelocity?: Vector3): void {
+    const satelliteData = satellite.positionDataSet.getClosestSatelliteData(dateTime);
     if (satelliteData === null) {
         outputPosition.set(0, 0, 0);
         if (outputVelocity !== undefined) {
@@ -103,5 +105,5 @@ export function satellitePosition(date: Date, satellite: Satellite, outputPositi
         }
         return;
     }
-    return bodyPosition(satelliteData, date, false, outputPosition, outputVelocity);
+    return bodyPosition(satelliteData, dateTime, false, outputPosition, outputVelocity);
 }

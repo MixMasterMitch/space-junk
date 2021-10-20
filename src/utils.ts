@@ -1,10 +1,11 @@
 import { J2000_EPOCH } from './constants';
 import { Vector3 } from 'three';
 import { EciVec3, Kilometer, SatRec, propagate as propagateInKm, KilometerPerSecond } from 'satellite.js';
+import { DateTime, Duration } from 'luxon';
 
-export const getJ200PeriodPercentage = (date: Date, periodMs: number): number => {
-    const elapsedTime = date.getTime() - J2000_EPOCH.getTime();
-    const elapsedSiderealDays = elapsedTime / periodMs;
+export const getJ200PeriodPercentage = (dateTime: DateTime, period: Duration): number => {
+    const elapsedTime = dateTime.diff(J2000_EPOCH);
+    const elapsedSiderealDays = elapsedTime.toMillis() / period.toMillis();
     return getDecimalComponent(elapsedSiderealDays);
 };
 
@@ -22,13 +23,6 @@ export const kmToModelUnits = (km: number): number => {
 
 export const kmPerSecondToModelUnits = (kmPerSecond: number): number => {
     return kmPerSecond / 1000 / 1000;
-};
-
-export const getDayOfYear = (date: Date): number => {
-    const start = new Date(date.getFullYear(), 0, 0);
-    const diff = date.getTime() - start.getTime() + (start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000;
-    const oneDay = 1000 * 60 * 60 * 24;
-    return Math.floor(diff / oneDay);
 };
 
 /**

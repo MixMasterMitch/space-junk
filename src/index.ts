@@ -1,7 +1,11 @@
+import { Settings } from 'luxon';
+
+Settings.defaultZone = 'UTC';
+
 import { startAnimation } from './animation';
 import { log } from './utils';
 import SatellitesData from './SatellitesData';
-import {startUI, uiEventBus} from './ui';
+import { startUI, uiEventBus } from './ui';
 
 const main = async (): Promise<void> => {
     log('Fetching and parsing satellite data...');

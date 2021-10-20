@@ -20,6 +20,7 @@ import { memcpy } from './utils';
 import Sun from './Sun';
 import SceneComponent from './SceneComponent';
 import SatellitesData from '../SatellitesData';
+import { DateTime, Duration } from 'luxon';
 
 export default class Satellites extends SceneComponent {
     private static NUM_TAIL_SEGMENTS = 20;
@@ -31,13 +32,13 @@ export default class Satellites extends SceneComponent {
 
     private sun: Sun;
     private satellitePositionStates: SatellitePositionState[] = [];
-    private trailTimestamps: number[] = [];
+    private trailTimestamps: DateTime[] = [];
 
     constructor(sun: Sun, satellitesData: SatellitesData) {
         super();
         this.sun = sun;
         for (const satellite of satellitesData) {
-            this.satellitePositionStates.push(new SatellitePositionState(satellite, 60 * 1000));
+            this.satellitePositionStates.push(new SatellitePositionState(satellite, Duration.fromObject({ minutes: 1 })));
         }
     }
 
@@ -159,7 +160,7 @@ export default class Satellites extends SceneComponent {
         scene.add(this.trails);
     }
 
-    public render(date: Date, camera: Camera, guiData: GUIData): void {
+    public render(dateTime: DateTime, camera: Camera, guiData: GUIData): void {
         if (!this.spheres || !this.trails) {
             return;
         }
@@ -170,11 +171,12 @@ export default class Satellites extends SceneComponent {
         const positionArray = this.trails.geometry.attributes.position.array as Float32Array;
         const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
 
+        const tailDurationPerSegment = Duration.fromMillis((guiData.tailLength * 60 * 1000) / Satellites.NUM_TAIL_SEGMENTS);
         const advanceTrail =
             this.trailTimestamps.length < Satellites.NUM_TAIL_TRIANGLES ||
-            date.getTime() - this.trailTimestamps[this.trailTimestamps.length - 1] >= (guiData.tailLength * 60 * 1000) / (Satellites.NUM_TAIL_TRIANGLES - 1);
+            dateTime.diff(this.trailTimestamps[this.trailTimestamps.length - 1]) >= tailDurationPerSegment;
         if (advanceTrail) {
-            this.trailTimestamps.push(date.getTime());
+            this.trailTimestamps.push(dateTime);
             if (this.trailTimestamps.length > Satellites.NUM_TAIL_TRIANGLES) {
                 this.trailTimestamps.shift();
             }
@@ -189,18 +191,16 @@ export default class Satellites extends SceneComponent {
         (this.trails.material as SatelliteTrailMaterial).sunPosition = this.sun.getPosition();
 
         // For each satellite, get an updated position and save it to the translation array and update the trail
+        const dateTimeMs = dateTime.toMillis();
+        const l = positionArray.length / this.satellitePositionStates.length;
         for (let i = 0; i < this.satellitePositionStates.length; i++) {
+            const index = i * 3;
             const satelliteData = this.satellitePositionStates[i];
-            const position = satelliteData.getPosition(date);
-
-            translationArray[i * 3] = position.x;
-            translationArray[i * 3 + 1] = position.y;
-            translationArray[i * 3 + 2] = position.z;
-
-            const l = positionArray.length / this.satellitePositionStates.length;
-            const offset = i * Satellites.NUM_TAIL_VERTICES * 3;
-
+            const position = satelliteData.getPosition(dateTimeMs);
             const positionVectorArray = new Float32Array([position.x, position.y, position.z]);
+
+            const offset = index * Satellites.NUM_TAIL_VERTICES;
+            translationArray.set(positionVectorArray, index);
             positionArray.set(positionVectorArray, offset + l - 6);
             positionArray.set(positionVectorArray, offset + l - 3);
             // Technically, the first position also needs to be updated but since the width is 0, it doesn't actually make

@@ -1,16 +1,17 @@
 import * as React from 'react';
 import { findDOMNode, render } from 'react-dom';
-import {CSSProperties, FunctionComponent, useEffect, useRef, useState} from 'react';
+import { CSSProperties, FunctionComponent, useEffect, useRef, useState } from 'react';
 import Timeout = NodeJS.Timeout;
 import { log } from './utils';
 import { WebGLRenderer } from 'three';
-import {DefaultEventMap, EventEmitter} from 'tsee';
+import { DefaultEventMap, EventEmitter } from 'tsee';
+import { DateTime, Duration, Interval } from 'luxon';
 
-const START_DATE = new Date('1959-01-01T00:00:00.000Z');
-const END_DATE = new Date();
-const END_DATE_YEAR_END = new Date(Date.UTC(END_DATE.getUTCFullYear() + 1, 0, 1));
-const NUM_YEARS = END_DATE_YEAR_END.getUTCFullYear() - START_DATE.getUTCFullYear();
-const NUM_MILLIS = END_DATE_YEAR_END.getTime() - START_DATE.getTime();
+const START_DATE = DateTime.fromISO('1959-01-01T00:00:00.000Z').toUTC();
+const END_DATE = DateTime.utc();
+const TIMELINE_INTERVAL = Interval.fromDateTimes(START_DATE, END_DATE.endOf('year'));
+const TIMELINE_NUM_YEARS = Math.ceil(TIMELINE_INTERVAL.length('years'));
+const TIMELINE_NUM_MILLIS = TIMELINE_INTERVAL.length('milliseconds');
 
 const titleStyle: CSSProperties = {
     margin: 0,
@@ -70,7 +71,7 @@ const dateMarkerStyle: CSSProperties = {
 };
 
 export interface UIEvents extends DefaultEventMap {
-    dateTick: (date: Date) => void;
+    dateTick: (date: DateTime) => void;
 }
 
 interface UIProps {
@@ -78,31 +79,31 @@ interface UIProps {
 }
 const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
     const timelineElement = useRef<HTMLDivElement>(null);
-    const [currentDate, setCurrentDate] = useState<Date>();
-    const [hoverDate, setHoverDate] = useState<Date | null>(null);
+    const [currentDate, setCurrentDateTime] = useState<DateTime>();
+    const [hoverDateTime, setHoverDateTimeTime] = useState<DateTime | null>(null);
     useEffect(() => {
         eventBus.addListener('dateTick', (date) => {
-            setCurrentDate(date);
+            setCurrentDateTime(date);
         });
     });
 
-    let dateTime = END_DATE.getTime();
-    if (hoverDate !== null) {
-        dateTime = hoverDate.getTime();
+    let dateTime = END_DATE;
+    if (hoverDateTime !== null) {
+        dateTime = hoverDateTime;
     } else if (currentDate !== undefined) {
-        dateTime = currentDate.getTime();
+        dateTime = currentDate;
     }
-    const percent = (dateTime - START_DATE.getTime()) / NUM_MILLIS;
+    const percent = dateTime.diff(START_DATE).toMillis() / TIMELINE_NUM_MILLIS;
     let offset = 0;
     if (timelineElement.current !== null) {
         offset = timelineElement.current.offsetWidth * percent;
     }
-    log(offset);
+    // log(offset);
 
     const yearMarkers = [];
     const yearLabels = [];
-    for (let i = 0; i < NUM_YEARS; i++) {
-        const year = START_DATE.getUTCFullYear() + i;
+    for (let i = 0; i < TIMELINE_NUM_YEARS; i++) {
+        const year = START_DATE.year + i;
         const isNewDecade = year % 10 === 0;
         yearMarkers.push(<div key={i} style={{ ...yearMarkerContainerStyle, height: isNewDecade ? '1rem' : '0.5rem' }} />);
         yearLabels.push(
@@ -117,7 +118,7 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
             <div
                 style={timelineContainerStyle}
                 ref={timelineElement}
-                onMouseLeave={() => setHoverDate(null)}
+                onMouseLeave={() => setHoverDateTimeTime(null)}
                 onMouseMove={(e) => {
                     if (timelineElement.current !== null) {
                         const element = findDOMNode(timelineElement.current) as Element;
@@ -125,8 +126,9 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
                         const elementEdgePosition = element.getBoundingClientRect().x;
                         const elementWidth = timelineElement.current.offsetWidth;
                         const percent = Math.max(0, Math.min(1, (clickPosition - elementEdgePosition) / elementWidth));
-                        const date = new Date(Math.min(START_DATE.getTime() + NUM_MILLIS * percent, END_DATE.getTime()));
-                        setHoverDate(date);
+                        const duration = Duration.fromMillis(TIMELINE_NUM_MILLIS * percent);
+                        const dateTime = DateTime.min(START_DATE.plus(duration), END_DATE);
+                        setHoverDateTimeTime(dateTime);
                     }
                 }}
             >
