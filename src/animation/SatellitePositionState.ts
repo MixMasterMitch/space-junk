@@ -46,6 +46,12 @@ export default class SatellitePositionState {
         // Do nothing
     }
 
+    public isInOrbit(dateTime: number): boolean {
+        const isAfterLaunchDate = this.satellite.launchDateTime === null || dateTime > this.satellite.launchDateTime;
+        const isBeforeDecayDate = this.satellite.decayDateTime === null || dateTime < this.satellite.decayDateTime;
+        return isAfterLaunchDate && isBeforeDecayDate;
+    }
+
     public getPosition(dateTime: number): Vector3 {
         if (!this.satellite) {
             return undefined as unknown as Vector3;

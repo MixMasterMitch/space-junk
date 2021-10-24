@@ -11,9 +11,9 @@ export interface Satellite {
     objectType: ObjectType;
     size: Size;
     countryCode: string | null;
-    launchDate: DateTime | null;
+    launchDateTime: number | null;
     launchSite: string | null;
-    decayDate: DateTime | null;
+    decayDateTime: number | null;
     positionDataSet: SatellitePositionDataSet;
 }
 
@@ -114,9 +114,9 @@ export default class SatellitesData implements Iterable<Satellite> {
                         objectType,
                         size,
                         countryCode: data[5],
-                        launchDate: getDateFromDayString(data[6]),
+                        launchDateTime: data[6] === '' ? null : getDateFromDayString(data[6]).toMillis(),
                         launchSite: data[7],
-                        decayDate: getDateFromDayString(data[8]),
+                        decayDateTime: data[8] === '' ? null : getDateFromDayString(data[8]).endOf('day').toMillis(),
                         positionDataSet: new SatellitePositionDataSet(),
                     };
                     satellites.addSatellite(satellite);

@@ -26,6 +26,7 @@ export default class Satellites extends SceneComponent {
     private static NUM_TAIL_SEGMENTS = 20;
     private static NUM_TAIL_TRIANGLES = Satellites.NUM_TAIL_SEGMENTS + 1;
     private static NUM_TAIL_VERTICES = Satellites.NUM_TAIL_SEGMENTS + 3;
+    private static ZERO_VECTOR = new Float32Array([0, 0, 0]);
 
     private spheres?: Mesh;
     private trails?: Mesh;
@@ -196,8 +197,11 @@ export default class Satellites extends SceneComponent {
         for (let i = 0; i < this.satellitePositionStates.length; i++) {
             const index = i * 3;
             const satelliteData = this.satellitePositionStates[i];
-            const position = satelliteData.getPosition(dateTimeMs);
-            const positionVectorArray = new Float32Array([position.x, position.y, position.z]);
+            let positionVectorArray = Satellites.ZERO_VECTOR;
+            if (satelliteData.isInOrbit(dateTimeMs)) {
+                const position = satelliteData.getPosition(dateTimeMs);
+                positionVectorArray = new Float32Array([position.x, position.y, position.z]);
+            }
 
             const offset = index * Satellites.NUM_TAIL_VERTICES;
             translationArray.set(positionVectorArray, index);
