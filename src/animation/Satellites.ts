@@ -30,6 +30,7 @@ export default class Satellites extends SceneComponent {
 
     private spheres?: Mesh;
     private trails?: Mesh;
+    private prevDateTime?: DateTime;
 
     private sun: Sun;
     private satellitePositionStates: SatellitePositionState[] = [];
@@ -165,6 +166,11 @@ export default class Satellites extends SceneComponent {
         if (!this.spheres || !this.trails) {
             return;
         }
+        const trailDuration = Duration.fromObject({ minutes: guiData.tailLength });
+
+        if (!this.prevDateTime || Math.abs(dateTime.diff(this.prevDateTime).toMillis()) > trailDuration.toMillis()) {
+            this.initializeTrail(dateTime, guiData);
+        }
 
         (this.spheres.material as SatelliteSphereMaterial).baseSize = guiData.satelliteSize;
 
@@ -172,10 +178,7 @@ export default class Satellites extends SceneComponent {
         const positionArray = this.trails.geometry.attributes.position.array as Float32Array;
         const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
 
-        const tailDurationPerSegment = Duration.fromMillis((guiData.tailLength * 60 * 1000) / Satellites.NUM_TAIL_SEGMENTS);
-        const advanceTrail =
-            this.trailTimestamps.length < Satellites.NUM_TAIL_TRIANGLES ||
-            dateTime.diff(this.trailTimestamps[this.trailTimestamps.length - 1]) >= tailDurationPerSegment;
+        const advanceTrail = dateTime.diff(this.trailTimestamps[this.trailTimestamps.length - 1]) >= Satellites.getTailDurationPerSegment(guiData);
         if (advanceTrail) {
             this.trailTimestamps.push(dateTime);
             if (this.trailTimestamps.length > Satellites.NUM_TAIL_TRIANGLES) {
@@ -209,10 +212,57 @@ export default class Satellites extends SceneComponent {
             positionArray.set(positionVectorArray, offset + l - 3);
             // Technically, the first position also needs to be updated but since the width is 0, it doesn't actually make
             // a difference visually. Therefore, that step is cut out here.
-        }
-        this.spheres.geometry.attributes.translation.needsUpdate = true;
 
+            // On the first position calculation, initialize
+            if (this.trailTimestamps.length === 1) {
+                for (let j = 0; j < Satellites.NUM_TAIL_VERTICES; j++) {
+                    positionArray.set(positionVectorArray, offset + 3 * j);
+                    previousArray.set(positionVectorArray, offset + 3 * j);
+                }
+            }
+        }
+
+        this.spheres.geometry.attributes.translation.needsUpdate = true;
         this.trails.geometry.attributes.position.needsUpdate = true;
         this.trails.geometry.attributes.previous.needsUpdate = true;
+
+        this.prevDateTime = dateTime;
+    }
+
+    public async resetData(dateTime: DateTime, guiData: GUIData): Promise<void> {
+        this.initializeTrail(dateTime, guiData);
+        this.prevDateTime = dateTime;
+    }
+
+    private initializeTrail(dateTime: DateTime, guiData: GUIData): void {
+        if (!this.trails) {
+            return;
+        }
+        const positionArray = this.trails.geometry.attributes.position.array as Float32Array;
+        const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
+        for (let i = 0; i < Satellites.NUM_TAIL_TRIANGLES; i++) {
+            const stepDateTime = dateTime.minus(Satellites.getTailDurationPerSegment(guiData).toMillis() * (Satellites.NUM_TAIL_SEGMENTS - i));
+            this.trailTimestamps.push(stepDateTime);
+            for (let j = 0; j < this.satellitePositionStates.length; j++) {
+                const state = this.satellitePositionStates[j];
+                const satelliteOffset = j * Satellites.NUM_TAIL_VERTICES * 3;
+                const position = state.getPosition(stepDateTime.toMillis());
+                const positionVectorArray = new Float32Array([position.x, position.y, position.z]);
+                if (i === 0) {
+                    positionArray.set(positionVectorArray, satelliteOffset);
+                    previousArray.set(positionVectorArray, satelliteOffset);
+                    previousArray.set(positionVectorArray, satelliteOffset + (i + 1) * 3);
+                }
+                positionArray.set(positionVectorArray, satelliteOffset + (i + 1) * 3);
+                previousArray.set(positionVectorArray, satelliteOffset + (i + 2) * 3);
+                if (i === Satellites.NUM_TAIL_TRIANGLES - 1) {
+                    positionArray.set(positionVectorArray, satelliteOffset + (i + 2) * 3);
+                }
+            }
+        }
+    }
+
+    private static getTailDurationPerSegment(guiData: GUIData): Duration {
+        return Duration.fromMillis((guiData.tailLength * 60 * 1000) / Satellites.NUM_TAIL_SEGMENTS);
     }
 }

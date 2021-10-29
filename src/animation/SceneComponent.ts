@@ -6,4 +6,8 @@ export default abstract class SceneComponent<T = DateTime> {
     abstract initialize(scene: Scene, renderer: Renderer): Promise<void>;
 
     abstract render(data: T, camera: Camera, guiData: GUIData): void;
+
+    public async resetData(data: T, guiData: GUIData): Promise<void> {
+        // Do nothing by default
+    }
 }

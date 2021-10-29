@@ -36,6 +36,18 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     // Initialize GUI data
     const guiData: GUIData = getLocalGUIData();
 
+    // Initialize DateTime
+    // let dateTime = J2000_EPOCH;
+    let dateTime = DateTime.fromISO('2021-09-02T19:46-07:00');
+    // let dateTime = DateTime.now();
+    const storedDate = localStorage.getItem('date');
+    if (storedDate !== null && !guiData.reset) {
+        dateTime = DateTime.fromMillis(JSON.parse(storedDate));
+    }
+
+    // Initialize satellite data
+    await satellitesData.loadTLEs(dateTime);
+
     // Create the scene
     const scene = new Scene();
     const sceneComponents: SceneComponent[] = [];
@@ -93,6 +105,7 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     sceneComponents.push(satellites);
 
     await Promise.all(sceneComponents.map((sc) => sc.initialize(scene, renderer)));
+    await Promise.all(sceneComponents.map((sc) => sc.resetData(dateTime, guiData)));
     document.body.appendChild(renderer.domElement);
 
     // Initialize FPS meter
@@ -138,14 +151,6 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     };
     window.addEventListener('resize', updateRendererSize, false);
 
-    // let dateTime = J2000_EPOCH;
-    let dateTime = DateTime.fromISO('2021-09-02T19:46-07:00');
-    // let dateTime = DateTime.now();
-    const storedDate = localStorage.getItem('date');
-    if (storedDate !== null && !guiData.reset) {
-        dateTime = DateTime.fromMillis(JSON.parse(storedDate));
-    }
-    await satellitesData.loadTLEs(dateTime);
     let lastFrameTimestamp: number;
     let frameNumber = 0;
     const animate = async (frameTimestamp: number) => {
