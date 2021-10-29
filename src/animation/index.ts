@@ -27,7 +27,7 @@ export interface GUIData {
     rotationSpeed: number;
     fov: number;
     speed: number; // Multiplier on real time
-    tailLength: number; // In minutes
+    trailLength: number; // In minutes
     satelliteSize: number;
     pixelRatio: number;
 }
@@ -129,7 +129,7 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     gui.add(guiData, 'rotationSpeed', 0, 1).onChange(saveLocalGUIData);
     gui.add(guiData, 'fov', 1, 100).onChange(saveLocalGUIData);
     gui.add(guiData, 'speed', 1, 100).onChange(saveLocalGUIData);
-    gui.add(guiData, 'tailLength', 0, 20).onChange(saveLocalGUIData);
+    gui.add(guiData, 'trailLength', 0, 20).onChange(saveLocalGUIData);
     gui.add(guiData, 'satelliteSize', 0, 2).onChange(saveLocalGUIData);
     gui.add(guiData, 'pixelRatio', 0.5, 2).onChange(saveLocalGUIData);
 
@@ -151,6 +151,21 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     };
     window.addEventListener('resize', updateRendererSize, false);
 
+    // Setup date reset handler
+    let dateResetPromise = Promise.resolve<unknown>(null);
+    uiEventBus.addListener('dateReset', (newDateTime) => {
+        dateResetPromise = new Promise<void>(async (resolve) => {
+            // Load new satellite data
+            await satellitesData.loadTLEs(newDateTime);
+
+            // Reset components
+            await Promise.all(sceneComponents.map((sc) => sc.resetData(newDateTime, guiData)));
+
+            resolve();
+        });
+        dateTime = newDateTime;
+    });
+
     let lastFrameTimestamp: number;
     let frameNumber = 0;
     const animate = async (frameTimestamp: number) => {
@@ -159,6 +174,8 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
         if (guiData.pause) {
             return;
         }
+
+        await dateResetPromise;
 
         frameNumber++;
         if (frameNumber <= 2) {
@@ -173,7 +190,6 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
         const frameTimeDiff = recording ? 16 : frameTimestamp - lastFrameTimestamp;
         lastFrameTimestamp = frameTimestamp;
         dateTime = dateTime.plus(Duration.fromMillis(frameTimeDiff * guiData.speed));
-        // uiEventBus.emit('dateTick', dateTime);
 
         stats.begin();
         stats.dom.hidden = !guiData.showStats;
@@ -203,6 +219,7 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
         }
 
         stats.end();
+        uiEventBus.emit('dateTick', dateTime);
     };
     requestAnimationFrame(animate);
 
@@ -242,7 +259,7 @@ const DEFAULT_GUI_DATA: GUIData = {
     rotationSpeed: 0.1,
     fov: 70,
     speed: 60,
-    tailLength: 3,
+    trailLength: 3,
     satelliteSize: 1,
     pixelRatio: window.devicePixelRatio,
 };

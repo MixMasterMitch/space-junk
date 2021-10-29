@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { findDOMNode, render } from 'react-dom';
-import { CSSProperties, FunctionComponent, useEffect, useRef, useState } from 'react';
+import {CSSProperties, FunctionComponent, RefObject, useEffect, useRef, useState} from 'react';
 import Timeout = NodeJS.Timeout;
 import { log } from './utils';
 import { WebGLRenderer } from 'three';
@@ -59,7 +59,7 @@ const yearLabelInnerStyle: CSSProperties = {
     justifyContent: 'center',
 };
 
-const dateContainerStyle: CSSProperties = {
+const dateMarkerContainerStyle: CSSProperties = {
     position: 'absolute',
     display: 'flex',
     top: 0,
@@ -70,8 +70,15 @@ const dateMarkerStyle: CSSProperties = {
     height: '2rem',
 };
 
+const dateContainerStyle: CSSProperties = {
+    position: 'absolute',
+    display: 'flex',
+    top: '-1.5rem',
+};
+
 export interface UIEvents extends DefaultEventMap {
     dateTick: (date: DateTime) => void;
+    dateReset: (date: DateTime) => void;
 }
 
 interface UIProps {
@@ -79,6 +86,7 @@ interface UIProps {
 }
 const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
     const timelineElement = useRef<HTMLDivElement>(null);
+    const dateElement = useRef<HTMLDivElement>(null);
     const [currentDate, setCurrentDateTime] = useState<DateTime>();
     const [hoverDateTime, setHoverDateTimeTime] = useState<DateTime | null>(null);
     useEffect(() => {
@@ -94,10 +102,14 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
         dateTime = currentDate;
     }
     const percent = dateTime.diff(START_DATE).toMillis() / TIMELINE_NUM_MILLIS;
-    let offset = 0;
+    let dateMarkerOffset = 0;
     if (timelineElement.current !== null) {
-        offset = timelineElement.current.offsetWidth * percent;
+        dateMarkerOffset = timelineElement.current.offsetWidth * percent;
     }
+
+    const { width: timelineWidth } = getElementWidthAndOffset(timelineElement);
+    const { width: dateWidth } = getElementWidthAndOffset(dateElement);
+    const dateOffset = Math.max(0, Math.min(dateMarkerOffset - dateWidth / 2, timelineWidth - dateWidth));
     // log(offset);
 
     const yearMarkers = [];
@@ -121,26 +133,36 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
                 onMouseLeave={() => setHoverDateTimeTime(null)}
                 onMouseMove={(e) => {
                     if (timelineElement.current !== null) {
-                        const element = findDOMNode(timelineElement.current) as Element;
                         const clickPosition = e.nativeEvent.clientX;
-                        const elementEdgePosition = element.getBoundingClientRect().x;
-                        const elementWidth = timelineElement.current.offsetWidth;
+                        const { width: elementWidth, offset: elementEdgePosition } = getElementWidthAndOffset(timelineElement);
                         const percent = Math.max(0, Math.min(1, (clickPosition - elementEdgePosition) / elementWidth));
                         const duration = Duration.fromMillis(TIMELINE_NUM_MILLIS * percent);
-                        const dateTime = DateTime.min(START_DATE.plus(duration), END_DATE);
-                        setHoverDateTimeTime(dateTime);
+                        const newDateTime = DateTime.min(START_DATE.plus(duration), END_DATE);
+                        setHoverDateTimeTime(newDateTime);
                     }
                 }}
+                onClick={() => eventBus.emit('dateReset', dateTime)}
             >
                 <div style={timelineMarkersContainerStyle}>{yearMarkers}</div>
                 <div style={timelineLabelsContainerStyle}>{yearLabels}</div>
-                <div style={{ ...dateContainerStyle, left: `${offset}px` }}>
+                <div style={{ ...dateMarkerContainerStyle, left: `${dateMarkerOffset}px` }}>
                     <div style={dateMarkerStyle} />
+                </div>
+                <div style={{ ...dateContainerStyle, left: `${dateOffset}px` }}>
+                    <div ref={dateElement}>{dateTime.toFormat('hh:mm a MMM dd, yyyy')}</div>
                 </div>
             </div>
         </div>
     );
 };
+
+function getElementWidthAndOffset(ref: RefObject<HTMLDivElement>): { width: number; offset: number } {
+    if (ref.current === null) {
+        return { width: 0, offset: 0 };
+    }
+    const element = findDOMNode(ref.current) as Element;
+    return { width: ref.current.offsetWidth, offset: element.getBoundingClientRect().x };
+}
 
 export const uiEventBus = new EventEmitter<UIEvents>();
 

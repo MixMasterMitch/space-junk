@@ -151,7 +151,7 @@ export default class SatellitesData implements Iterable<Satellite> {
 
         const startIndex = this.getMatchingFileIndex(startTime);
         const endIndex = this.getMatchingFileIndex(endTime);
-        for (let i = startIndex; i < endIndex; i++) {
+        for (let i = startIndex; i <= endIndex; i++) {
             const file = SatellitesData.FILES[i];
             const hasLoadedFile = this.loadedFiles.find((loadedFile) => loadedFile.name === file.name) !== undefined;
             if (!hasLoadedFile) {

@@ -2,6 +2,7 @@ import { Renderer, Scene, Vector3 } from 'three';
 import { satellitePosition } from '../orb';
 import { Satellite } from '../SatellitesData';
 import { Duration } from 'luxon';
+import {log} from "../utils";
 
 export default class SatellitePositionState {
     // The period of time (in model time, not real time) between accurate SGP4 position calculations
@@ -10,6 +11,7 @@ export default class SatellitePositionState {
     private readonly updatePeriodJitterMs: number;
     // A reusable vector for returning positions. Used to reduce object creations.
     private readonly output: Vector3;
+    private readonly lastOutput: Vector3;
     private readonly temp: Vector3;
     private readonly satellite: Satellite;
     // SGP4 position 1 for interpolation
@@ -24,12 +26,14 @@ export default class SatellitePositionState {
     private readonly positionDiff: Vector3;
     private positionTimestampDiff: number;
     private hasInitialized: boolean;
+    private hasLogged: boolean;
 
     public constructor(satellite: Satellite, updatePeriod: Duration) {
         this.satellite = satellite;
         this.updatePeriodMs = updatePeriod.toMillis();
         this.updatePeriodJitterMs = Math.round(Math.random() * updatePeriod.toMillis());
         this.output = new Vector3();
+        this.lastOutput = new Vector3();
         this.temp = new Vector3();
         this.position1 = new Vector3();
         this.position1Velocity = new Vector3();
@@ -39,6 +43,13 @@ export default class SatellitePositionState {
         this.position2Timestamp = 0;
         this.positionDiff = new Vector3();
         this.positionTimestampDiff = 0;
+        this.hasInitialized = false;
+        this.hasLogged = false;
+    }
+
+    public reset(): void {
+        this.lastOutput.set(0, 0, 0);
+        this.hasLogged = false;
         this.hasInitialized = false;
     }
 
@@ -101,6 +112,11 @@ export default class SatellitePositionState {
             this.output.multiplyScalar(1 - percentage).add(this.temp.multiplyScalar(percentage));
             // this.output.copy(this.positionDiff).multiplyScalar(percentage).add(this.position1);
         }
+        // if (!this.hasLogged && this.lastOutput.length() > 1 && this.lastOutput.clone().sub(this.output).length() > .5) {
+        //     log(this.satellite);
+        //     this.hasLogged = true;
+        // }
+        // this.lastOutput.copy(this.output);
         return this.output;
     }
 

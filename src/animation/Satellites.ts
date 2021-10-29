@@ -230,6 +230,9 @@ export default class Satellites extends SceneComponent {
     }
 
     public async resetData(dateTime: DateTime, guiData: GUIData): Promise<void> {
+        for (const satelliteState of this.satellitePositionStates) {
+            satelliteState.reset();
+        }
         this.initializeTrail(dateTime, guiData);
         this.prevDateTime = dateTime;
     }
@@ -238,6 +241,7 @@ export default class Satellites extends SceneComponent {
         if (!this.trails) {
             return;
         }
+        this.trailTimestamps = [];
         const positionArray = this.trails.geometry.attributes.position.array as Float32Array;
         const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
         for (let i = 0; i < Satellites.NUM_TAIL_TRIANGLES; i++) {
