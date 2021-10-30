@@ -2,7 +2,6 @@ import { Renderer, Scene, Vector3 } from 'three';
 import { satellitePosition } from '../orb';
 import { Satellite } from '../SatellitesData';
 import { Duration } from 'luxon';
-import {log} from "../utils";
 
 export default class SatellitePositionState {
     // The period of time (in model time, not real time) between accurate SGP4 position calculations
@@ -118,6 +117,10 @@ export default class SatellitePositionState {
         // }
         // this.lastOutput.copy(this.output);
         return this.output;
+    }
+
+    public get sizeName(): 'LARGE' | 'MEDIUM' | 'SMALL' {
+        return this.satellite.size;
     }
 
     public get size(): number {

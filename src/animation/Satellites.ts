@@ -21,6 +21,20 @@ import Sun from './Sun';
 import SceneComponent from './SceneComponent';
 import SatellitesData from '../SatellitesData';
 import { DateTime, Duration } from 'luxon';
+import { modelUnitsToKm } from '../utils';
+
+export interface SatelliteStats {
+    large: number;
+    medium: number;
+    small: number;
+    payload: number;
+    rocketBody: number;
+    debris: number;
+    starlink: number;
+    leo: number;
+    geo: number;
+    total: number;
+}
 
 export default class Satellites extends SceneComponent {
     private static NUM_TAIL_SEGMENTS = 20;
@@ -31,6 +45,7 @@ export default class Satellites extends SceneComponent {
     private spheres?: Mesh;
     private trails?: Mesh;
     private prevDateTime?: DateTime;
+    public stats?: SatelliteStats;
 
     private sun: Sun;
     private satellitePositionStates: SatellitePositionState[] = [];
@@ -166,7 +181,19 @@ export default class Satellites extends SceneComponent {
         if (!this.spheres || !this.trails) {
             return;
         }
-        const trailDuration = Duration.fromObject({ minutes: guiData.tailLength });
+        this.stats = {
+            large: 0,
+            medium: 0,
+            small: 0,
+            payload: 0,
+            rocketBody: 0,
+            debris: 0,
+            starlink: 0,
+            leo: 0,
+            geo: 0,
+            total: 0,
+        };
+        const trailDuration = Duration.fromObject({ minutes: guiData.trailLength });
 
         if (!this.prevDateTime || Math.abs(dateTime.diff(this.prevDateTime).toMillis()) > trailDuration.toMillis()) {
             this.initializeTrail(dateTime, guiData);
@@ -201,9 +228,24 @@ export default class Satellites extends SceneComponent {
             const index = i * 3;
             const satelliteData = this.satellitePositionStates[i];
             let positionVectorArray = Satellites.ZERO_VECTOR;
+            let position = null;
             if (satelliteData.isInOrbit(dateTimeMs)) {
-                const position = satelliteData.getPosition(dateTimeMs);
+                position = satelliteData.getPosition(dateTimeMs);
                 positionVectorArray = new Float32Array([position.x, position.y, position.z]);
+            }
+
+            if (position !== null && positionVectorArray[0] !== 0 && positionVectorArray[1] !== 0 && positionVectorArray[2] !== 0) {
+                this.stats.large += satelliteData.sizeName === 'LARGE' ? 1 : 0;
+                this.stats.medium += satelliteData.sizeName === 'MEDIUM' ? 1 : 0;
+                this.stats.small += satelliteData.sizeName === 'SMALL' ? 1 : 0;
+                this.stats.payload += satelliteData.type === 'PAYLOAD' ? 1 : 0;
+                this.stats.rocketBody += satelliteData.type === 'ROCKET BODY' ? 1 : 0;
+                this.stats.debris += satelliteData.type === 'DEBRIS' ? 1 : 0;
+                this.stats.starlink += satelliteData.isStarlinkSatellite ? 1 : 0;
+                const distanceKm = modelUnitsToKm(position.length());
+                this.stats.leo += distanceKm - Earth.RADIUS_KM < 3000 ? 1 : 0;
+                this.stats.geo += Math.abs(distanceKm - Earth.GEOSTATIONARY_KM) < 200 ? 1 : 0;
+                this.stats.total += 1;
             }
 
             const offset = index * Satellites.NUM_TAIL_VERTICES;
@@ -267,6 +309,6 @@ export default class Satellites extends SceneComponent {
     }
 
     private static getTailDurationPerSegment(guiData: GUIData): Duration {
-        return Duration.fromMillis((guiData.tailLength * 60 * 1000) / Satellites.NUM_TAIL_SEGMENTS);
+        return Duration.fromMillis((guiData.trailLength * 60 * 1000) / Satellites.NUM_TAIL_SEGMENTS);
     }
 }

@@ -21,6 +21,10 @@ export const kmToModelUnits = (km: number): number => {
     return km / 1000;
 };
 
+export const modelUnitsToKm = (modelUnites: number): number => {
+    return modelUnites * 1000;
+};
+
 export const kmPerSecondToModelUnits = (kmPerSecond: number): number => {
     return kmPerSecond / 1000 / 1000;
 };

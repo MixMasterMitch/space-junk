@@ -226,7 +226,14 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     setInterval(() => {
         satellitesData.purge(dateTime);
         satellitesData.loadTLEs(dateTime);
-    }, 50);
+    }, 500);
+
+    // Setup stats updater
+    setInterval(() => {
+        if (satellites.stats !== undefined) {
+            uiEventBus.emit('satelliteStatsUpdate', satellites.stats);
+        }
+    }, 1000);
 
     window.addEventListener('unload', function () {
         localStorage.setItem('cameraPosition', vectorToString(camera.position));
