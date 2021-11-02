@@ -8,3 +8,4 @@ src/native/target
 .DS_Store
 images/
 resources/
+dist/

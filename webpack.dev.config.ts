@@ -1,15 +1,9 @@
-import path from 'path';
 import { merge } from 'webpack-merge';
 import baseConfig from './webpack.config';
-import fs from "fs";
+import fs from 'fs';
 
 module.exports = merge(baseConfig, {
     mode: 'development',
-
-    output: {
-        path: path.resolve(__dirname, 'dist'),
-        filename: 'bundle.js',
-    },
 
     devServer: {
         static: true,
@@ -22,7 +16,7 @@ module.exports = merge(baseConfig, {
             devServer.app.get('/resources/filtered/*', (req, res) => {
                 console.log(req.path);
                 res.header('Content-Encoding', 'gzip');
-                fs.createReadStream(`./${req.path}.gz`).pipe(res);
+                fs.createReadStream(`./${req.path}`).pipe(res);
             });
         },
     },

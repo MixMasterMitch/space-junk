@@ -5,14 +5,13 @@ import Timeout = NodeJS.Timeout;
 import { log } from './utils';
 import { WebGLRenderer } from 'three';
 import { DefaultEventMap, EventEmitter } from 'tsee';
-import { DateTime, Duration, Interval } from 'luxon';
+import { DateTime, DateTimeUnit, Duration, DurationUnit, Interval } from 'luxon';
 import { SatelliteStats } from './animation/Satellites';
 
 const START_DATE = DateTime.fromISO('1959-01-01T00:00:00.000Z').toUTC();
 const END_DATE = DateTime.utc();
-const TIMELINE_INTERVAL = Interval.fromDateTimes(START_DATE, END_DATE.endOf('year'));
-const TIMELINE_NUM_YEARS = Math.ceil(TIMELINE_INTERVAL.length('years'));
-const TIMELINE_NUM_MILLIS = TIMELINE_INTERVAL.length('milliseconds');
+const TIMELINE_MIN_RANGE = Duration.fromObject({ days: 45 });
+const ZOOM_RATE = 0.001;
 
 const titleStyle: CSSProperties = {
     margin: 0,
@@ -51,11 +50,9 @@ const timelineLabelsContainerStyle: CSSProperties = {
 };
 
 const yearMarkerContainerStyle: CSSProperties = {
-    flex: 1,
     borderLeft: '1px solid white',
 };
 const yearLabelStyle: CSSProperties = {
-    flex: 1,
     position: 'relative',
     width: 0,
 };
@@ -96,8 +93,10 @@ interface UIProps {
 const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
     const timelineElement = useRef<HTMLDivElement>(null);
     const dateElement = useRef<HTMLDivElement>(null);
+    const [startDateTime, setStartDateTime] = useState<DateTime>(START_DATE);
+    const [endDateTime, setEndDateTime] = useState<DateTime>(END_DATE);
     const [currentDate, setCurrentDateTime] = useState<DateTime>();
-    const [hoverDateTime, setHoverDateTime] = useState<DateTime | null>(null);
+    const [hoverPercent, setHoverPercent] = useState<number | null>(null);
     const [satelliteStats, setSatelliteStats] = useState<SatelliteStats>({
         large: 0,
         medium: 0,
@@ -121,12 +120,23 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
     });
 
     let dateTime = END_DATE;
-    if (hoverDateTime !== null) {
-        dateTime = hoverDateTime;
+    let percent = 1;
+    const dateRange = endDateTime.diff(startDateTime);
+    const dateRangeMillis = dateRange.toMillis();
+    if (hoverPercent !== null) {
+        const duration = Duration.fromMillis(dateRangeMillis * hoverPercent);
+        dateTime = startDateTime.plus(duration);
+        percent = dateTime.diff(startDateTime).toMillis() / dateRangeMillis;
     } else if (currentDate !== undefined) {
         dateTime = currentDate;
+        if (dateTime > endDateTime) {
+            percent = 1;
+        } else if (dateTime < startDateTime) {
+            percent = 0;
+        } else {
+            percent = dateTime.diff(startDateTime).toMillis() / dateRangeMillis;
+        }
     }
-    const percent = dateTime.diff(START_DATE).toMillis() / TIMELINE_NUM_MILLIS;
     let dateMarkerOffset = 0;
     if (timelineElement.current !== null) {
         dateMarkerOffset = timelineElement.current.offsetWidth * percent;
@@ -137,17 +147,67 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
     const dateOffset = Math.max(0, Math.min(dateMarkerOffset - dateWidth / 2, timelineWidth - dateWidth));
     // log(offset);
 
-    const yearMarkers = [];
-    const yearLabels = [];
-    for (let i = 0; i < TIMELINE_NUM_YEARS; i++) {
-        const year = START_DATE.year + i;
-        const isNewDecade = year % 10 === 0;
-        yearMarkers.push(<div key={i} style={{ ...yearMarkerContainerStyle, height: isNewDecade ? '1rem' : '0.5rem' }} />);
-        yearLabels.push(
-            <div key={i} style={yearLabelStyle}>
-                <div style={yearLabelInnerStyle}>{isNewDecade ? year : ''}</div>
+    let unit: DateTimeUnit = 'year';
+    let durationUnit: DurationUnit = 'years';
+    if (dateRange < Duration.fromObject({ years: 10 })) {
+        unit = 'month';
+        durationUnit = 'months';
+    }
+    if (dateRange < Duration.fromObject({ years: 1 })) {
+        unit = 'day';
+        durationUnit = 'days';
+    }
+    // const start = startDateTime.get(unit);
+    // const count = getDiffCount(startDateTime, endDateTime, unit);
+    const markers = [];
+    const labels = [];
+    // const startPercentage = 1 - getPercentageOfUnit(startDateTime, unit);
+    // const endPercentage = getPercentageOfUnit(endDateTime, unit);
+    let currDateTime = startDateTime;
+    let nextDateTime;
+    while (currDateTime < endDateTime) {
+        const key = unit + currDateTime.toMillis();
+        let markerVisible = true;
+        if (currDateTime === startDateTime) {
+            nextDateTime = currDateTime.endOf(unit).plus({ milliseconds: 1 });
+            markerVisible = currDateTime.startOf(unit) === startDateTime;
+        } else {
+            nextDateTime = currDateTime.plus({ [durationUnit]: 1 });
+            if (nextDateTime > endDateTime) {
+                nextDateTime = endDateTime;
+            }
+        }
+        const numHours = nextDateTime.diff(currDateTime).as('hours');
+        let isMajorMarker = false;
+        let label: string | number = '';
+        if (unit === 'year') {
+            const year = currDateTime.year;
+            isMajorMarker = year % 10 === 0;
+            label = year;
+        } else if (unit === 'month') {
+            const year = currDateTime.year;
+            const month = currDateTime.month;
+            isMajorMarker = month === 1;
+            label = year;
+        } else if (unit === 'day') {
+            const day = currDateTime.day;
+            isMajorMarker = day === 1;
+            label = currDateTime.monthShort;
+        }
+
+        markers.push(
+            <div
+                key={key}
+                style={{ ...yearMarkerContainerStyle, flex: numHours, borderLeftWidth: markerVisible ? 1 : 0, height: isMajorMarker ? '1rem' : '0.5rem' }}
+            />,
+        );
+        labels.push(
+            <div key={key} style={{ ...yearLabelStyle, flex: numHours }}>
+                <div style={yearLabelInnerStyle}>{markerVisible && isMajorMarker ? label : ''}</div>
             </div>,
         );
+
+        currDateTime = nextDateTime;
     }
     return (
         <div>
@@ -172,30 +232,40 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
                         <div>
                             Low Earth orbit satellites ({'<'} 3,000 km altitude): {satelliteStats.leo}
                         </div>
-                        <div>
-                            Geosynchronous orbit satellites (35,786 km altitude): {satelliteStats.geo}
-                        </div>
+                        <div>Geosynchronous orbit satellites (35,786 km altitude): {satelliteStats.geo}</div>
                     </>
                 ) : null}
             </div>
             <div
                 style={timelineContainerStyle}
                 ref={timelineElement}
-                onMouseLeave={() => setHoverDateTime(null)}
+                onWheel={(e) => {
+                    if (hoverPercent === null) {
+                        return;
+                    }
+                    const dateRangeDuration = endDateTime.diff(startDateTime);
+                    if (dateRangeDuration <= TIMELINE_MIN_RANGE && e.deltaY < 0) {
+                        return;
+                    }
+                    const baseRangeChange = dateRangeMillis * ZOOM_RATE * e.deltaY;
+                    setStartDateTime(DateTime.fromMillis(Math.max(START_DATE.toMillis(), startDateTime.toMillis() - hoverPercent * baseRangeChange)));
+                    setEndDateTime(DateTime.fromMillis(Math.min(END_DATE.toMillis(), endDateTime.toMillis() + (1 - hoverPercent) * baseRangeChange)));
+                    log(startDateTime.toISO());
+                    log(endDateTime.toISO());
+                }}
+                onMouseLeave={() => setHoverPercent(null)}
                 onMouseMove={(e) => {
                     if (timelineElement.current !== null) {
                         const clickPosition = e.nativeEvent.clientX;
                         const { width: elementWidth, offset: elementEdgePosition } = getElementWidthAndOffset(timelineElement);
                         const percent = Math.max(0, Math.min(1, (clickPosition - elementEdgePosition) / elementWidth));
-                        const duration = Duration.fromMillis(TIMELINE_NUM_MILLIS * percent);
-                        const newDateTime = DateTime.min(START_DATE.plus(duration), END_DATE);
-                        setHoverDateTime(newDateTime);
+                        setHoverPercent(percent);
                     }
                 }}
                 onClick={() => eventBus.emit('dateReset', dateTime)}
             >
-                <div style={timelineMarkersContainerStyle}>{yearMarkers}</div>
-                <div style={timelineLabelsContainerStyle}>{yearLabels}</div>
+                <div style={timelineMarkersContainerStyle}>{markers}</div>
+                <div style={timelineLabelsContainerStyle}>{labels}</div>
                 <div style={{ ...dateMarkerContainerStyle, left: `${dateMarkerOffset}px` }}>
                     <div style={dateMarkerStyle} />
                 </div>
@@ -221,17 +291,21 @@ export function startUI(renderer: WebGLRenderer): EventEmitter<UIEvents> {
     const rootElement = document.getElementById('react-root') as HTMLElement;
 
     let hideUITimeout: Timeout;
-    const handleMouseMove = () => {
-        renderer.domElement.className = renderer.domElement.className.replace('hide-cursor', 'show-cursor');
-        rootElement.className = 'fade-in';
+    const resetHideUITimeout = () => {
         clearTimeout(hideUITimeout);
         hideUITimeout = setTimeout(() => {
             renderer.domElement.className = renderer.domElement.className.replace('show-cursor', 'hide-cursor');
             rootElement.className = 'fade-out';
         }, 3000);
     };
+    const handleMouseMove = () => {
+        renderer.domElement.className = renderer.domElement.className.replace('hide-cursor', 'show-cursor');
+        rootElement.className = 'fade-in';
+        resetHideUITimeout();
+    };
     renderer.domElement.addEventListener('mousemove', handleMouseMove);
     rootElement.addEventListener('mousemove', handleMouseMove);
+    rootElement.addEventListener('wheel', resetHideUITimeout);
 
     render(<UI eventBus={uiEventBus} />, rootElement);
     return uiEventBus;

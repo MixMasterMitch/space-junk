@@ -3,7 +3,7 @@ import zlib from 'zlib';
 import es, { MapStream } from 'event-stream';
 import { Readable } from 'stream';
 import Immediate = NodeJS.Immediate;
-import { getDayStringFromDate, getNextEndDate } from '../src/SatellitesData';
+import { getDayStringFromDate, getNextEndDate } from '../src/dateUtils';
 import { DateTime, Duration } from 'luxon';
 
 interface Satellite {

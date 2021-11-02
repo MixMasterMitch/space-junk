@@ -5,8 +5,9 @@
     "main": "src/index.ts",
     "scripts": {
         "pull-tles": "ts-node bin/tle-puller.ts",
-        "build": "webpack --config webpack.dist.config.js",
-        "copy-public-to-dist": "cp -r public dist",
+        "aggregate-tles": "ts-node bin/tle-aggregator.ts",
+        "build": "webpack --config webpack.dist.config.ts",
+        "copy-public-to-dist": "cp -r public/* dist",
         "develop": "cross-env TS_NODE_PROJECT=\"tsconfig-for-webpack-config.json\" webpack serve --config webpack.dev.config.ts",
         "lint": "eslint 'src/**/*.ts'",
         "release": "yarn lint && yarn build && yarn copy-public-to-dist",

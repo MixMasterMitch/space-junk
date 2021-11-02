@@ -6,9 +6,8 @@ import fs from 'fs';
 import zlib from 'zlib';
 
 import credentials from '../spaceTrackCreds.json';
-
 import SpaceTrack from '../src/SpaceTrack';
-import { getDayStringFromDate } from '../src/SatellitesData';
+import { getDayStringFromDate } from '../src/dateUtils';
 
 const incrementDayStringOneDay = (dateString: string): string => {
     const inputDateTime = DateTime.fromISO(dateString);
@@ -39,7 +38,7 @@ const run = async (): Promise<void> => {
         const csv = await spaceTrack.getTLEsForDateRange(curDayString, nextDayString);
         let numResults = 0;
         if (csv !== 'NO RESULTS RETURNED') {
-            numResults = csv.split('\n').length;
+            numResults = csv.split('\n').length - 2;
         }
         console.log(`Retrieved ${numResults} results`);
         console.log('Gzipping data');
