@@ -28,7 +28,7 @@ export default class SatellitePositionDataSet {
         const mid = Math.floor((start + end) / 2);
         const midValue = this.data[mid];
         if (epoch < midValue.epoch) {
-            return this.getInsertionIndex(epoch, start, mid - 1);
+            return this.getInsertionIndex(epoch, start, mid);
         } else if (epoch > midValue.epoch) {
             return this.getInsertionIndex(epoch, mid + 1, end);
         } else {

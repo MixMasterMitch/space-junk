@@ -10,6 +10,7 @@ import {
     Scene,
     SphereBufferGeometry,
     Vector2,
+    Vector3,
 } from 'three';
 import Earth from './Earth';
 import { GUIData } from './index';
@@ -31,6 +32,7 @@ export interface SatelliteStats {
     rocketBody: number;
     debris: number;
     starlink: number;
+    gps: number;
     leo: number;
     geo: number;
     total: number;
@@ -40,7 +42,9 @@ export default class Satellites extends SceneComponent {
     private static NUM_TAIL_SEGMENTS = 20;
     private static NUM_TAIL_TRIANGLES = Satellites.NUM_TAIL_SEGMENTS + 1;
     private static NUM_TAIL_VERTICES = Satellites.NUM_TAIL_SEGMENTS + 3;
-    private static ZERO_VECTOR = new Float32Array([0, 0, 0]);
+    private static ZERO_VECTOR = new Vector3(0, 0, 0);
+    private static ZERO_VECTOR_ARRAY = new Float32Array([0, 0, 0]);
+    private static STATUS_UPDATE_FREQUENCY = 60;
 
     private spheres?: Mesh;
     private trails?: Mesh;
@@ -50,6 +54,7 @@ export default class Satellites extends SceneComponent {
     private sun: Sun;
     private satellitePositionStates: SatellitePositionState[] = [];
     private trailTimestamps: DateTime[] = [];
+    private iterationNum = 0;
 
     constructor(sun: Sun, satellitesData: SatellitesData) {
         super();
@@ -181,18 +186,23 @@ export default class Satellites extends SceneComponent {
         if (!this.spheres || !this.trails) {
             return;
         }
-        this.stats = {
-            large: 0,
-            medium: 0,
-            small: 0,
-            payload: 0,
-            rocketBody: 0,
-            debris: 0,
-            starlink: 0,
-            leo: 0,
-            geo: 0,
-            total: 0,
-        };
+        const updateStats = this.iterationNum % Satellites.STATUS_UPDATE_FREQUENCY === 0;
+        if (updateStats) {
+            this.stats = {
+                large: 0,
+                medium: 0,
+                small: 0,
+                payload: 0,
+                rocketBody: 0,
+                debris: 0,
+                starlink: 0,
+                gps: 0,
+                leo: 0,
+                geo: 0,
+                total: 0,
+            };
+        }
+
         const trailDuration = Duration.fromObject({ minutes: guiData.trailLength });
 
         if (!this.prevDateTime || Math.abs(dateTime.diff(this.prevDateTime).toMillis()) > trailDuration.toMillis()) {
@@ -227,14 +237,21 @@ export default class Satellites extends SceneComponent {
         for (let i = 0; i < this.satellitePositionStates.length; i++) {
             const index = i * 3;
             const satelliteData = this.satellitePositionStates[i];
-            let positionVectorArray = Satellites.ZERO_VECTOR;
+            let positionVectorArray = Satellites.ZERO_VECTOR_ARRAY;
             let position = null;
             if (satelliteData.isInOrbit(dateTimeMs)) {
                 position = satelliteData.getPosition(dateTimeMs);
                 positionVectorArray = new Float32Array([position.x, position.y, position.z]);
             }
 
-            if (position !== null && positionVectorArray[0] !== 0 && positionVectorArray[1] !== 0 && positionVectorArray[2] !== 0) {
+            if (
+                updateStats &&
+                this.stats !== undefined &&
+                position !== null &&
+                positionVectorArray[0] !== 0 &&
+                positionVectorArray[1] !== 0 &&
+                positionVectorArray[2] !== 0
+            ) {
                 this.stats.large += satelliteData.sizeName === 'LARGE' ? 1 : 0;
                 this.stats.medium += satelliteData.sizeName === 'MEDIUM' ? 1 : 0;
                 this.stats.small += satelliteData.sizeName === 'SMALL' ? 1 : 0;
@@ -242,6 +259,7 @@ export default class Satellites extends SceneComponent {
                 this.stats.rocketBody += satelliteData.type === 'ROCKET BODY' ? 1 : 0;
                 this.stats.debris += satelliteData.type === 'DEBRIS' ? 1 : 0;
                 this.stats.starlink += satelliteData.isStarlinkSatellite ? 1 : 0;
+                this.stats.gps += satelliteData.isGPS ? 1 : 0;
                 const distanceKm = modelUnitsToKm(position.length());
                 this.stats.leo += distanceKm - Earth.RADIUS_KM < 3000 ? 1 : 0;
                 this.stats.geo += Math.abs(distanceKm - Earth.GEOSTATIONARY_KM) < 200 ? 1 : 0;
@@ -269,6 +287,7 @@ export default class Satellites extends SceneComponent {
         this.trails.geometry.attributes.previous.needsUpdate = true;
 
         this.prevDateTime = dateTime;
+        this.iterationNum++;
     }
 
     public async resetData(dateTime: DateTime, guiData: GUIData): Promise<void> {
@@ -288,12 +307,17 @@ export default class Satellites extends SceneComponent {
         const previousArray = this.trails.geometry.attributes.previous.array as Float32Array;
         for (let i = 0; i < Satellites.NUM_TAIL_TRIANGLES; i++) {
             const stepDateTime = dateTime.minus(Satellites.getTailDurationPerSegment(guiData).toMillis() * (Satellites.NUM_TAIL_SEGMENTS - i));
+            const stepDateTimeMs = stepDateTime.toMillis();
             this.trailTimestamps.push(stepDateTime);
             for (let j = 0; j < this.satellitePositionStates.length; j++) {
                 const state = this.satellitePositionStates[j];
                 const satelliteOffset = j * Satellites.NUM_TAIL_VERTICES * 3;
-                const position = state.getPosition(stepDateTime.toMillis());
-                const positionVectorArray = new Float32Array([position.x, position.y, position.z]);
+                let positionVectorArray = Satellites.ZERO_VECTOR_ARRAY;
+                let position = null;
+                if (state.isInOrbit(stepDateTimeMs)) {
+                    position = state.getPosition(stepDateTimeMs);
+                    positionVectorArray = new Float32Array([position.x, position.y, position.z]);
+                }
                 if (i === 0) {
                     positionArray.set(positionVectorArray, satelliteOffset);
                     previousArray.set(positionVectorArray, satelliteOffset);

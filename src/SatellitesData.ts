@@ -38,7 +38,7 @@ export default class SatellitesData implements Iterable<Satellite> {
     private constructor() {
         if (SatellitesData.FILES.length === 0) {
             let dateTime = getNextEndDate();
-            while (dateTime <= getDateFromDayString('2021-09-30')) {
+            while (dateTime <= getDateFromDayString('2021-12-14')) {
                 const nextDate = getNextEndDate(dateTime);
                 SatellitesData.FILES.push({
                     name: getDayStringFromDate(dateTime),
@@ -112,7 +112,7 @@ export default class SatellitesData implements Iterable<Satellite> {
         const endTime = epoch.plus(SatellitesData.TLE_LOOKAHEAD_BUFFER);
 
         const startIndex = this.getMatchingFileIndex(startTime);
-        const endIndex = this.getMatchingFileIndex(endTime);
+        const endIndex = Math.min(startIndex, Math.max(SatellitesData.FILES.length - 1, this.getMatchingFileIndex(endTime)));
         for (let i = startIndex; i <= endIndex; i++) {
             const file = SatellitesData.FILES[i];
             const hasLoadedFile = this.loadedFiles.find((loadedFile) => loadedFile.name === file.name) !== undefined;

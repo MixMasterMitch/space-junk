@@ -38,12 +38,14 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
 
     // Initialize DateTime
     // let dateTime = J2000_EPOCH;
-    let dateTime = DateTime.fromISO('2021-09-02T19:46-07:00');
+    let dateTime = DateTime.fromISO('2021-11-01T23:30:00.000Z');
     // let dateTime = DateTime.now();
     const storedDate = localStorage.getItem('date');
     if (storedDate !== null && !guiData.reset) {
         dateTime = DateTime.fromMillis(JSON.parse(storedDate));
     }
+    const frameTimeDiffResetThreshold = Duration.fromObject({ seconds: 10 });
+    const endDateTime = DateTime.fromISO('2021-12-22T00:00:00.000Z');
 
     // Initialize satellite data
     await satellitesData.loadTLEs(dateTime);
@@ -150,6 +152,7 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
         renderer.setPixelRatio(pixelRatio);
     };
     window.addEventListener('resize', updateRendererSize, false);
+    updateRendererSize();
 
     // Setup date reset handler
     let dateResetPromise = Promise.resolve<unknown>(null);
@@ -190,6 +193,13 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
         const frameTimeDiff = recording ? 16 : frameTimestamp - lastFrameTimestamp;
         lastFrameTimestamp = frameTimestamp;
         dateTime = dateTime.plus(Duration.fromMillis(frameTimeDiff * guiData.speed));
+        if (frameTimeDiff > frameTimeDiffResetThreshold.toMillis()) {
+            uiEventBus.emit('dateReset', dateTime);
+            return;
+        }
+        if (dateTime > endDateTime) {
+            return;
+        }
 
         stats.begin();
         stats.dom.hidden = !guiData.showStats;
@@ -257,17 +267,17 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 const DEFAULT_GUI_DATA: GUIData = {
     pause: false,
     reset: false,
-    showStats: true,
+    showStats: false,
     showAxes: false,
     showShadowHelper: false,
     showTraceLines: false,
     showStars: true,
-    recordFrames: true,
+    recordFrames: false,
     rotationSpeed: 0.1,
-    fov: 70,
-    speed: 60,
-    trailLength: 3,
-    satelliteSize: 1,
+    fov: 50,
+    speed: 20,
+    trailLength: 5,
+    satelliteSize: 0.3,
     pixelRatio: window.devicePixelRatio,
 };
 

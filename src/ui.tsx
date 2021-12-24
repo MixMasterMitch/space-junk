@@ -9,7 +9,7 @@ import { DateTime, DateTimeUnit, Duration, DurationUnit, Interval } from 'luxon'
 import { SatelliteStats } from './animation/Satellites';
 
 const START_DATE = DateTime.fromISO('1959-01-01T00:00:00.000Z').toUTC();
-const END_DATE = DateTime.utc();
+const END_DATE = DateTime.fromISO('2021-12-22T00:00:00.000Z').toUTC();
 const TIMELINE_MIN_RANGE = Duration.fromObject({ days: 45 });
 const ZOOM_RATE = 0.001;
 
@@ -105,6 +105,7 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
         rocketBody: 0,
         debris: 0,
         starlink: 0,
+        gps: 0,
         leo: 0,
         geo: 0,
         total: 0,
@@ -117,7 +118,7 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
         eventBus.addListener('satelliteStatsUpdate', (stats) => {
             setSatelliteStats(stats);
         });
-    });
+    }, []);
 
     let dateTime = END_DATE;
     let percent = 1;
@@ -229,6 +230,7 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
                         <div>Rocket bodies: {satelliteStats.rocketBody}</div>
                         <div>Debris satellites: {satelliteStats.debris}</div>
                         <div>Starlink satellites: {satelliteStats.starlink}</div>
+                        <div>GPS satellites: {satelliteStats.gps}</div>
                         <div>
                             Low Earth orbit satellites ({'<'} 3,000 km altitude): {satelliteStats.leo}
                         </div>
@@ -250,8 +252,6 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
                     const baseRangeChange = dateRangeMillis * ZOOM_RATE * e.deltaY;
                     setStartDateTime(DateTime.fromMillis(Math.max(START_DATE.toMillis(), startDateTime.toMillis() - hoverPercent * baseRangeChange)));
                     setEndDateTime(DateTime.fromMillis(Math.min(END_DATE.toMillis(), endDateTime.toMillis() + (1 - hoverPercent) * baseRangeChange)));
-                    log(startDateTime.toISO());
-                    log(endDateTime.toISO());
                 }}
                 onMouseLeave={() => setHoverPercent(null)}
                 onMouseMove={(e) => {
@@ -270,7 +270,7 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
                     <div style={dateMarkerStyle} />
                 </div>
                 <div style={{ ...dateContainerStyle, left: `${dateOffset}px` }}>
-                    <div ref={dateElement}>{dateTime.toFormat('hh:mm a MMM dd, yyyy')}</div>
+                    <div ref={dateElement}>{dateTime.toFormat('hh:mm a ZZZZ MMM dd, yyyy')}</div>
                 </div>
             </div>
         </div>

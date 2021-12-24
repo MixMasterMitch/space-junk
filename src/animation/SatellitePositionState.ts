@@ -25,7 +25,10 @@ export default class SatellitePositionState {
     private readonly positionDiff: Vector3;
     private positionTimestampDiff: number;
     private hasInitialized: boolean;
-    private hasLogged: boolean;
+    private lastDateTime?: number;
+    private isTooFast: boolean;
+
+    private static MAX_VELOCITY_KM_PER_SECOND = 10;
 
     public constructor(satellite: Satellite, updatePeriod: Duration) {
         this.satellite = satellite;
@@ -43,13 +46,14 @@ export default class SatellitePositionState {
         this.positionDiff = new Vector3();
         this.positionTimestampDiff = 0;
         this.hasInitialized = false;
-        this.hasLogged = false;
+        this.isTooFast = false;
     }
 
     public reset(): void {
         this.lastOutput.set(0, 0, 0);
-        this.hasLogged = false;
+        this.lastDateTime = undefined;
         this.hasInitialized = false;
+        this.isTooFast = false;
     }
 
     public async initialize(scene: Scene, renderer: Renderer): Promise<void> {
@@ -111,11 +115,26 @@ export default class SatellitePositionState {
             this.output.multiplyScalar(1 - percentage).add(this.temp.multiplyScalar(percentage));
             // this.output.copy(this.positionDiff).multiplyScalar(percentage).add(this.position1);
         }
-        // if (!this.hasLogged && this.lastOutput.length() > 1 && this.lastOutput.clone().sub(this.output).length() > .5) {
-        //     log(this.satellite);
-        //     this.hasLogged = true;
-        // }
-        // this.lastOutput.copy(this.output);
+
+        if (this.lastDateTime !== undefined) {
+            const lastOutputIsZero = this.lastOutput.x === 0 && this.lastOutput.y === 0 && this.lastOutput.z === 0 && !this.isTooFast;
+            if (!lastOutputIsZero) {
+                const elapsedTimeSeconds = (dateTime - this.lastDateTime) / 1000;
+                const velocityKmPerSecond = (this.lastOutput.distanceTo(this.output) * 1000) / elapsedTimeSeconds;
+                if (velocityKmPerSecond > SatellitePositionState.MAX_VELOCITY_KM_PER_SECOND) {
+                    this.output.set(0, 0, 0);
+                    this.isTooFast = true;
+                } else {
+                    this.isTooFast = false;
+                }
+            } else {
+                this.isTooFast = false;
+            }
+        }
+
+        this.lastDateTime = dateTime;
+        this.lastOutput.copy(this.output);
+
         return this.output;
     }
 
@@ -125,7 +144,7 @@ export default class SatellitePositionState {
 
     public get size(): number {
         if (this.isISS) {
-            return SatellitePositionState.crossSectionToRadius(250); // 7_957
+            return SatellitePositionState.crossSectionToRadius(250); // 6_862 based on https://www.nasa.gov/feature/facts-and-figures
         } else if (this.isHubble) {
             return SatellitePositionState.crossSectionToRadius(55);
         } else if (this.isGPS) {
