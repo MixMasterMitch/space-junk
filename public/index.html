@@ -102,6 +102,12 @@
                 color: white;
                 text-shadow: 0 0 6px black, 0 0 8px black, 0 0 10px black;
             }
+            #controls-container {
+                position: absolute;
+                top: 0;
+                right: 0;
+                z-index: 100;
+            }
         </style>
         <script src="https://cdn.jsdelivr.net/gh/lizard-isana/orb.js@v2.4/build/min/orb.v2.min.js"></script>
     </head>
@@ -117,6 +123,7 @@
             </div>
         </div>
         <div id="react-root"></div>
+        <div id="controls-container"></div>
         <script src="/bundle.js"></script>
     </body>
 </html>

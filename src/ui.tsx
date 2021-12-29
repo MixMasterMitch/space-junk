@@ -2,11 +2,11 @@ import * as React from 'react';
 import { findDOMNode, render } from 'react-dom';
 import { CSSProperties, FunctionComponent, RefObject, useEffect, useRef, useState } from 'react';
 import Timeout = NodeJS.Timeout;
-import { log } from './utils';
 import { WebGLRenderer } from 'three';
 import { DefaultEventMap, EventEmitter } from 'tsee';
-import { DateTime, DateTimeUnit, Duration, DurationUnit, Interval } from 'luxon';
+import { DateTime, DateTimeUnit, Duration, DurationUnit } from 'luxon';
 import { SatelliteStats } from './animation/Satellites';
+import Color from './animation/Color';
 
 const START_DATE = DateTime.fromISO('1959-01-01T00:00:00.000Z').toUTC();
 const END_DATE = DateTime.fromISO('2021-12-22T00:00:00.000Z').toUTC();
@@ -19,10 +19,27 @@ const titleStyle: CSSProperties = {
     paddingBottom: 0,
 };
 
+const hoverPromptStyle: CSSProperties = {
+    fontSize: '0.5rem',
+};
+
 const statsStyle: CSSProperties = {
     pointerEvents: 'auto',
     padding: '1rem calc(2% + 1rem)',
     lineHeight: '1.3',
+};
+
+const legendTitleStyle: CSSProperties = {
+    fontWeight: 900,
+    marginTop: '0.5rem',
+};
+
+const legendColorStyle: CSSProperties = {
+    width: '0.8rem',
+    height: '0.8rem',
+    borderRadius: '0.4rem',
+    display: 'inline-block',
+    marginRight: '0.2rem',
 };
 
 const timelineContainerStyle: CSSProperties = {
@@ -145,7 +162,7 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
 
     const { width: timelineWidth } = getElementWidthAndOffset(timelineElement);
     const { width: dateWidth } = getElementWidthAndOffset(dateElement);
-    const dateOffset = Math.max(0, Math.min(dateMarkerOffset - dateWidth / 2, timelineWidth - dateWidth));
+    const dateOffset = Math.max(0, Math.min(dateMarkerOffset - dateWidth / 2, timelineWidth - dateWidth - 1));
     // log(offset);
 
     let unit: DateTimeUnit = 'year';
@@ -235,8 +252,39 @@ const UI: FunctionComponent<UIProps> = ({ eventBus }) => {
                             Low Earth orbit satellites ({'<'} 3,000 km altitude): {satelliteStats.leo}
                         </div>
                         <div>Geosynchronous orbit satellites (35,786 km altitude): {satelliteStats.geo}</div>
+                        <div style={legendTitleStyle}>Legend</div>
+                        <div>
+                            <span style={{ ...legendColorStyle, backgroundColor: Color.SKY_BLUE.HEX }} />
+                            ISS
+                        </div>
+                        <div>
+                            <span style={{ ...legendColorStyle, backgroundColor: Color.ORANGE.HEX }} />
+                            Hubble
+                        </div>
+                        <div>
+                            <span style={{ ...legendColorStyle, backgroundColor: Color.PURPLE.HEX }} />
+                            Starlink
+                        </div>
+                        <div>
+                            <span style={{ ...legendColorStyle, backgroundColor: Color.GREEN.HEX }} />
+                            GPS
+                        </div>
+                        <div>
+                            <span style={{ ...legendColorStyle, backgroundColor: Color.YELLOW.HEX }} />
+                            Other Satellite
+                        </div>
+                        <div>
+                            <span style={{ ...legendColorStyle, backgroundColor: Color.BLUE.HEX }} />
+                            Rocket Body
+                        </div>
+                        <div>
+                            <span style={{ ...legendColorStyle, backgroundColor: Color.RED.HEX }} />
+                            Debris
+                        </div>
                     </>
-                ) : null}
+                ) : (
+                    <div style={hoverPromptStyle}>Hover for more details</div>
+                )}
             </div>
             <div
                 style={timelineContainerStyle}
@@ -289,6 +337,7 @@ export const uiEventBus = new EventEmitter<UIEvents>();
 
 export function startUI(renderer: WebGLRenderer): EventEmitter<UIEvents> {
     const rootElement = document.getElementById('react-root') as HTMLElement;
+    const controlsElement = document.getElementById('controls-container') as HTMLElement;
 
     let hideUITimeout: Timeout;
     const resetHideUITimeout = () => {
@@ -296,11 +345,13 @@ export function startUI(renderer: WebGLRenderer): EventEmitter<UIEvents> {
         hideUITimeout = setTimeout(() => {
             renderer.domElement.className = renderer.domElement.className.replace('show-cursor', 'hide-cursor');
             rootElement.className = 'fade-out';
+            controlsElement.className = 'fade-out';
         }, 3000);
     };
     const handleMouseMove = () => {
         renderer.domElement.className = renderer.domElement.className.replace('hide-cursor', 'show-cursor');
         rootElement.className = 'fade-in';
+        controlsElement.className = 'fade-in';
         resetHideUITimeout();
     };
     renderer.domElement.addEventListener('mousemove', handleMouseMove);

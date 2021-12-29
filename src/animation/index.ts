@@ -116,7 +116,9 @@ export const startAnimation = async (satellitesData: SatellitesData, uiEventBus:
     document.body.appendChild(stats.dom);
 
     // Setup the GUI
-    const gui = new dat.GUI({ closeOnTop: true });
+    const gui = new dat.GUI({ closeOnTop: true, autoPlace: false });
+    (document.getElementById('controls-container') as HTMLElement).appendChild(gui.domElement);
+    gui.close();
     const saveLocalGUIData = (): void => {
         localStorage.setItem('gui', JSON.stringify(guiData));
     };

@@ -2,7 +2,7 @@ import {
     BufferAttribute,
     BufferGeometry,
     Camera,
-    Color,
+    Color as Color3JS,
     InstancedBufferAttribute,
     InstancedBufferGeometry,
     Mesh,
@@ -23,6 +23,7 @@ import SceneComponent from './SceneComponent';
 import SatellitesData from '../SatellitesData';
 import { DateTime, Duration } from 'luxon';
 import { modelUnitsToKm } from '../utils';
+import Color from './Color';
 
 export interface SatelliteStats {
     large: number;
@@ -72,14 +73,6 @@ export default class Satellites extends SceneComponent {
         }
 
         // Colors
-        // log(new Color(0x00c853).getHSL({ h: 0, s: 0, l: 0 }).h);
-        const redHue = 0.011; // red 0xf44336
-        const orangeHue = 0.071; // orange 0xff6d00
-        const yellowHue = 0.129; // yellow 0xffc602
-        const greenHue = 0.403; // green 0x00c853
-        const skyBlueHue = 0.559; // sky blue 0x049ef4
-        const blueHue = 0.642; // blue 0x3d5afe
-        const purpleHue = 0.727; // purple 0x3d5afe
         const saturation = 1;
         const lightness = 0.5;
         const energy = 0.2;
@@ -100,22 +93,22 @@ export default class Satellites extends SceneComponent {
             sizeArray[i] = satellitePositionState.size;
             let hue;
             if (satellitePositionState.isISS) {
-                hue = skyBlueHue;
+                hue = Color.SKY_BLUE.HUE;
             } else if (satellitePositionState.isHubble) {
-                hue = orangeHue;
+                hue = Color.ORANGE.HUE;
             } else if (satellitePositionState.isGPS) {
-                hue = greenHue;
+                hue = Color.GREEN.HUE;
             } else if (satellitePositionState.isStarlinkSatellite) {
-                hue = purpleHue;
+                hue = Color.PURPLE.HUE;
             } else if (satellitePositionState.type === 'PAYLOAD') {
-                hue = yellowHue;
+                hue = Color.YELLOW.HUE;
             } else if (satellitePositionState.type === 'ROCKET BODY') {
-                hue = blueHue;
+                hue = Color.BLUE.HUE;
             } else {
-                hue = redHue;
+                hue = Color.RED.HUE;
             }
-            const diffuse = new Color().setHSL(hue, saturation, lightness * 1.2).multiplyScalar(1.0 - energy);
-            const emissive = new Color().setHSL(hue, saturation, lightness / 1.2).multiplyScalar(1.0 - energy);
+            const diffuse = new Color3JS().setHSL(hue, saturation, lightness * 1.2).multiplyScalar(1.0 - energy);
+            const emissive = new Color3JS().setHSL(hue, saturation, lightness / 1.2).multiplyScalar(1.0 - energy);
             diffuseArray.set([diffuse.r, diffuse.g, diffuse.b], i * 3);
             emissiveArray.set([emissive.r, emissive.g, emissive.b], i * 3);
         }
@@ -124,7 +117,7 @@ export default class Satellites extends SceneComponent {
         sphereGeometry.setAttribute('emissive', new InstancedBufferAttribute(emissiveArray, 3));
 
         const sphereMaterial = new SatelliteSphereMaterial({
-            specular: new Color(0xffffff).multiplyScalar(energy),
+            specular: new Color3JS(0xffffff).multiplyScalar(energy),
             shininess,
         });
         this.spheres = new Mesh(sphereGeometry, sphereMaterial);
@@ -168,7 +161,7 @@ export default class Satellites extends SceneComponent {
         }
 
         const trailMaterial = new SatelliteTrailMaterial({
-            color: new Color(0xffffff),
+            color: new Color3JS(0xffffff),
             sizeAttenuation: 1,
             lineWidth: 0.02,
             resolution: new Vector2(window.innerWidth, window.innerHeight),
